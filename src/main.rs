@@ -1607,7 +1607,9 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  var ZOOM_MIN = 70;
 	  var ZOOM_MAX = 200;
 	  var ZOOM_STEP = 10;
+	  var WHEEL_ZOOM_THRESHOLD = 50;
 	  var zoomPercent = 100;
+	  var wheelZoomDelta = 0;
 
 	  btnOpen.innerHTML = ICON_OPEN;
 	  btnSearch.innerHTML = ICON_SEARCH;
@@ -2272,6 +2274,16 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  btnZoomOut.addEventListener('click', function() {{ changeZoom(-ZOOM_STEP); }});
 	  btnZoomReset.addEventListener('click', function() {{ applyZoom(100, true); }});
 	  btnZoomIn.addEventListener('click', function() {{ changeZoom(ZOOM_STEP); }});
+	  document.addEventListener('wheel', function(e) {{
+	    if (!e.ctrlKey || document.body.classList.contains('empty') || document.body.classList.contains('missing')) return;
+	    e.preventDefault();
+	    var scale = e.deltaMode === 1 ? 100 : (e.deltaMode === 2 ? 800 : 1);
+	    wheelZoomDelta += e.deltaY * scale;
+	    if (Math.abs(wheelZoomDelta) < WHEEL_ZOOM_THRESHOLD) return;
+	    var direction = wheelZoomDelta < 0 ? 1 : -1;
+	    wheelZoomDelta = 0;
+	    changeZoom(direction * ZOOM_STEP);
+	  }}, {{ passive: false }});
   btnPrint.addEventListener('click', function() {{
     if (inEdit()) leaveEdit();
     // Route through Rust: WKWebView ignores window.print(); wry's
@@ -3136,6 +3148,27 @@ mod tests {
         assert!(page.contains("id=\"btn-zoom-in\""));
         assert!(page.contains("id=\"btn-zoom-out\""));
         assert!(page.contains("id=\"btn-zoom-reset\""));
+    }
+
+    #[test]
+    fn page_zooms_content_with_ctrl_wheel() {
+        let strings = Strings::for_lang(Lang::En);
+        let page = build_page(
+            &md_to_html("# Hello"),
+            "# Hello",
+            None,
+            EnhanceFlags::default(),
+            &strings,
+            false,
+            true,
+        );
+
+        assert!(page.contains("WHEEL_ZOOM_THRESHOLD = 50"));
+        assert!(page.contains("document.addEventListener('wheel', function(e)"));
+        assert!(page.contains("if (!e.ctrlKey || document.body.classList.contains('empty')"));
+        assert!(page.contains("e.deltaMode === 1 ? 100 : (e.deltaMode === 2 ? 800 : 1)"));
+        assert!(page.contains("changeZoom(direction * ZOOM_STEP)"));
+        assert!(page.contains("{ passive: false }"));
     }
 
     #[test]

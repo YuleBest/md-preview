@@ -158,6 +158,50 @@ if (result.resetLabel !== '100%' || result.scale !== '1') {
   throw new Error(`zoom reset failed: ${JSON.stringify(result)}`);
 }
 
+const wheelZoom = await page.evaluate(() => {
+  const target = document.documentElement;
+  const dispatch = (deltaY, ctrlKey) => target.dispatchEvent(new WheelEvent('wheel', {
+    deltaY,
+    ctrlKey,
+    bubbles: true,
+    cancelable: true,
+  }));
+  const label = () => document.getElementById('btn-zoom-reset').textContent;
+  const plainAllowed = dispatch(-100, false);
+  const afterPlain = label();
+  const ctrlAllowed = dispatch(-100, true);
+  const afterCtrlUp = label();
+  dispatch(-20, true);
+  dispatch(-20, true);
+  const afterPartial = label();
+  dispatch(-20, true);
+  const afterAccumulated = label();
+  dispatch(100, true);
+  const afterDown = label();
+  return {
+    plainAllowed,
+    afterPlain,
+    ctrlAllowed,
+    afterCtrlUp,
+    afterPartial,
+    afterAccumulated,
+    afterDown,
+  };
+});
+if (wheelZoom.plainAllowed !== true || wheelZoom.afterPlain !== '100%') {
+  throw new Error(`plain wheel must keep the content zoom: ${JSON.stringify(wheelZoom)}`);
+}
+if (wheelZoom.ctrlAllowed !== false || wheelZoom.afterCtrlUp !== '110%') {
+  throw new Error(`Ctrl+wheel must zoom the content: ${JSON.stringify(wheelZoom)}`);
+}
+if (wheelZoom.afterPartial !== '110%' || wheelZoom.afterAccumulated !== '120%') {
+  throw new Error(`Ctrl+wheel must accumulate small deltas: ${JSON.stringify(wheelZoom)}`);
+}
+if (wheelZoom.afterDown !== '110%') {
+  throw new Error(`Ctrl+wheel down must zoom out: ${JSON.stringify(wheelZoom)}`);
+}
+await page.keyboard.press(`${modifier}+0`);
+
 await page.evaluate((source) => {
   const preview = document.getElementById('preview');
   preview.innerHTML = Array.from(

@@ -95,7 +95,7 @@ On iPhone and iPad, Local Markdown Preview opens Markdown and plain-text files f
 | Local document links | Relative or absolute links to existing Markdown and text files open or activate a tab; invalid local targets do not replace the preview. |
 | Front matter | YAML metadata at the start of a document stays readable as metadata instead of collapsing into a heading. |
 | Live statistics | The tab bar shows non-whitespace and total character counts and updates while editing. |
-| Content zoom | Zoom the rendered document or source text from 70% to 200% without resizing the tab bar or toolbar. |
+| Content zoom | Zoom the rendered document or source text from 70% to 200% with the toolbar, keyboard shortcuts, or Ctrl + mouse wheel, without resizing the tab bar or toolbar. |
 | Scroll continuity | Preview and source edit preserve normalized reading progress when their document heights differ. |
 | Start screen | Empty launches show Open File and local recent files, so the app is useful before anything is loaded. |
 | Mobile open | iOS opens Markdown from Files and the share sheet; Android can open Markdown from Files, WeChat, WeCom, and Android share sheets. |
