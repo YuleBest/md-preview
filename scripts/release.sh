@@ -100,20 +100,19 @@ find_release_run() {
   head="$(git rev-parse HEAD)"
   for _ in $(seq 1 40); do
     local run_id
-    run_id="$(
-      gh run list -R "$REPO" --workflow "$WORKFLOW" --limit 20 \
-        --json databaseId,event,headBranch,headSha \
-        --jq ".[] | select(.event == \"push\" and .headBranch == \"$TAG\" and .headSha == \"$head\") | .databaseId" \
-        | head -n 1
-    )"
+      run_id="$(
+        gh run list -R "$REPO" --workflow "$WORKFLOW" --limit 20 \
+          --json databaseId,event,headBranch,headSha \
+          --jq ".[] | select((.event == \"push\" or .event == \"workflow_dispatch\") and .headBranch == \"$TAG\" and .headSha == \"$head\") | .databaseId" \
+          | head -n 1
+      )"
     if [ -n "$run_id" ]; then
       echo "$run_id"
       return 0
     fi
     sleep 3
   done
-  echo "error: could not find Release workflow run for $TAG" >&2
-  exit 8
+  return 1
 }
 
 require_release_assets() {
@@ -151,7 +150,18 @@ echo "[release] pushing master and $TAG"
 MD_PREVIEW_RELEASE_FOREGROUND=1 git push origin master
 MD_PREVIEW_RELEASE_FOREGROUND=1 git push origin "$TAG"
 
-RUN_ID="$(find_release_run)"
+RUN_ID="$(find_release_run || true)"
+if [ -z "$RUN_ID" ]; then
+  # Forks do not run workflows on push events until they are enabled in the UI;
+  # dispatch the same workflow for the tag instead of failing the release.
+  echo "[release] no push-triggered run found; dispatching $WORKFLOW for $TAG"
+  gh workflow run "$WORKFLOW" -R "$REPO" --ref "$TAG"
+  RUN_ID="$(find_release_run || true)"
+fi
+if [ -z "$RUN_ID" ]; then
+  echo "error: could not find or dispatch Release workflow run for $TAG" >&2
+  exit 8
+fi
 echo "[release] watching GitHub Actions run $RUN_ID"
 gh run watch "$RUN_ID" -R "$REPO" --exit-status
 
