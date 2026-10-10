@@ -118,6 +118,7 @@ find_release_run() {
 
 require_release_assets() {
   local expected=(
+    MD-Preview-linux-x64.deb
     MD-Preview-linux-x64.tar.gz
     MD-Preview-windows-x64.exe
   )
