@@ -115,6 +115,7 @@ await page.setContent(`<!doctype html>
       <button id="btn-search"></button>
       <button id="btn-toggle"></button>
       <button id="btn-split" aria-pressed="false"></button>
+      <button id="btn-format" hidden></button>
       <button id="btn-print"></button>
       <div id="zoom-control" class="zoom-control">
         <button id="btn-zoom"></button>

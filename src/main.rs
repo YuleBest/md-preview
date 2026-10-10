@@ -46,6 +46,7 @@ enum UserEvent {
     ExternalChangeResolved(bool),
     FileSaved(PathBuf), // our own save: refresh preview only, leave textarea cursor alone
     RenderPreview(u64, String), // split view: re-render live source without writing the file
+    FormatSource(u64, String), // source edit: format the active Markdown buffer in Rust
     SaveFailed(String),
     DirtyChanged(bool),
     ToggleEdit,
@@ -159,6 +160,7 @@ struct Strings {
     btn_preview: &'static str,
     btn_split: &'static str,
     btn_split_exit: &'static str,
+    btn_format: &'static str,
     btn_new: &'static str,
     new_filename: &'static str,
     btn_open: &'static str,
@@ -190,6 +192,7 @@ impl Strings {
                 btn_preview: "预览 (Cmd/Ctrl+E)",
                 btn_split: "双栏视图 (Cmd/Ctrl+Shift+E)",
                 btn_split_exit: "退出双栏 (Cmd/Ctrl+Shift+E)",
+                btn_format: "格式化 Markdown (Alt+F)",
                 btn_new: "新建 Markdown (Cmd/Ctrl+N)",
                 new_filename: "新建.md",
                 btn_open: "Open File (Cmd/Ctrl+O)",
@@ -217,6 +220,7 @@ impl Strings {
                 btn_preview: "Preview (Cmd/Ctrl+E)",
                 btn_split: "Split View (Cmd/Ctrl+Shift+E)",
                 btn_split_exit: "Exit Split View (Cmd/Ctrl+Shift+E)",
+                btn_format: "Format Markdown (Alt+F)",
                 btn_new: "New Markdown (Cmd/Ctrl+N)",
                 new_filename: "Untitled.md",
                 btn_open: "Open File (Cmd/Ctrl+O)",
@@ -425,6 +429,12 @@ fn md_to_html_with_base(md: &str, base_dir: Option<&Path>) -> String {
     }
     html::push_html(&mut html_out, events.into_iter());
     html_out
+}
+
+fn format_markdown_source(source: &str) -> Result<Option<String>, String> {
+    let config = dprint_plugin_markdown::configuration::ConfigurationBuilder::new().build();
+    dprint_plugin_markdown::format_text(source, &config, |_tag, _text, _line_width| Ok(None))
+        .map_err(|error| error.to_string())
 }
 
 fn split_yaml_front_matter(md: &str) -> Option<(&str, &str)> {
@@ -800,6 +810,7 @@ fn tabs_json(session: &DocumentSession) -> String {
                 "active": session.active_id == Some(tab.id),
                 "missing": tab.missing,
                 "dirty": tab.dirty,
+                "format": has_markdown_extension(&tab.path),
             })
         })
         .collect::<Vec<_>>();
@@ -1392,6 +1403,7 @@ body.editing #app {{ max-width: none; padding: 0; }}
 body.editing #btn-open,
 body.editing #btn-search,
 body.editing #btn-print {{ display: none; }}
+body:not(.editing) #btn-format {{ display: none !important; }}
 
 /* Split view: source left, rendered preview right. The page keeps the only
    vertical scrollbar so both columns stay aligned while reading. */
@@ -1429,6 +1441,7 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  <button id="btn-search" title="{btn_search}" aria-label="{btn_search}"></button>
 	  <button id="btn-toggle" title="{btn_edit}" aria-label="{btn_edit}"></button>
 	  <button id="btn-split" title="{btn_split}" aria-label="{btn_split}" aria-pressed="false"></button>
+	  <button id="btn-format" title="{btn_format}" aria-label="{btn_format}" hidden></button>
 	  <button id="btn-print" title="{btn_print}" aria-label="{btn_print}"></button>
 	  <div class="zoom-control" id="zoom-control">
 	    <button id="btn-zoom" title="{btn_zoom}" aria-label="{btn_zoom}"></button>
@@ -1456,6 +1469,7 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  var ICON_EDIT = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
 	  var ICON_VIEW = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 	  var ICON_SPLIT = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/></svg>';
+	  var ICON_FORMAT = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg>';
 	  var ICON_OPEN = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6A2 2 0 0 1 18.45 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>';
 	  var ICON_SEARCH = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
 	  var ICON_PRINT = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
@@ -1463,12 +1477,13 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  var ICON_UP = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>';
 	  var ICON_DOWN = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
 	  var ICON_CLOSE = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
-	  var L_EDIT = '{btn_edit}', L_VIEW = '{btn_preview}', L_SPLIT = '{btn_split}', L_SPLIT_EXIT = '{btn_split_exit}';
+	  var L_EDIT = '{btn_edit}', L_VIEW = '{btn_preview}', L_SPLIT = '{btn_split}', L_SPLIT_EXIT = '{btn_split_exit}', L_FORMAT = '{btn_format}';
 
 	  var btnOpen = document.getElementById('btn-open');
 	  var btnSearch = document.getElementById('btn-search');
 	  var btnToggle = document.getElementById('btn-toggle');
 	  var btnSplit = document.getElementById('btn-split');
+	  var btnFormat = document.getElementById('btn-format');
 	  var btnPrint = document.getElementById('btn-print');
 	  var btnZoom = document.getElementById('btn-zoom');
 	  var btnZoomOut = document.getElementById('btn-zoom-out');
@@ -1492,6 +1507,8 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  var AUTOSAVE_DEBOUNCE_MS = 700;
 	  var pendingRenderTimer = 0;
 	  var RENDER_DEBOUNCE_MS = 250;
+	  var activeFormattable = false;
+	  var pendingFormatSource = null;
 	  var composingFind = false;
 	  var pendingFindTimer = 0;
 	  var FIND_DEBOUNCE_MS = 300;
@@ -1510,6 +1527,9 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  btnSearch.innerHTML = ICON_SEARCH;
 	  btnToggle.innerHTML = ICON_EDIT;
 	  btnSplit.innerHTML = ICON_SPLIT;
+	  btnFormat.innerHTML = ICON_FORMAT;
+	  btnFormat.title = L_FORMAT;
+	  btnFormat.setAttribute('aria-label', L_FORMAT);
 	  btnPrint.innerHTML = ICON_PRINT;
 	  btnZoom.innerHTML = ICON_ZOOM;
 	  btnUpdate.innerHTML = '<span class="update-mark">↻</span><span class="update-label">{btn_update}</span>';
@@ -1625,6 +1645,30 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	    cancelPendingRender();
 	    pendingRenderTimer = setTimeout(renderPreviewNow, RENDER_DEBOUNCE_MS);
 	  }}
+	  function updateFormatButton() {{
+	    btnFormat.hidden = !activeFormattable;
+	  }}
+	  function formatDocument() {{
+	    if (!inEdit() || !activeTabId || !activeFormattable) return;
+	    pendingFormatSource = ta.value;
+	    window.ipc.postMessage('format:' + activeTabId + '\n' + pendingFormatSource);
+	  }}
+	  window.__applyFormattedSource = function(tabId, formatted) {{
+	    if (tabId !== activeTabId || pendingFormatSource === null) return;
+	    var expected = pendingFormatSource;
+	    pendingFormatSource = null;
+	    if (typeof formatted !== 'string' || formatted === expected || ta.value !== expected) return;
+	    ta.focus();
+	    ta.select();
+	    var applied = false;
+	    try {{ applied = document.execCommand('insertText', false, formatted); }} catch (_) {{ applied = false; }}
+	    if (!applied || ta.value !== formatted) ta.value = formatted;
+	    setDirty(true);
+	    scheduleAutosave();
+	    schedulePreviewRender();
+	    autoResize();
+	    updateDocumentStats(ta.value);
+	  }};
 	  window.__mdPreviewSave = save;
 	  function requestTabAction(action, id) {{
 	    cancelPendingAutosave();
@@ -1902,6 +1946,7 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  btnSplit.addEventListener('click', function() {{
 	    window.__mdPreviewToggleSplit();
 	  }});
+	  btnFormat.addEventListener('click', formatDocument);
 	  btnZoom.addEventListener('click', function(e) {{
 	    e.stopPropagation();
 	    zoomControl.classList.toggle('open');
@@ -1970,6 +2015,11 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
       window.__mdPreviewToggleSplit();
       return;
     }}
+    if (e.altKey && !e.shiftKey && !e.metaKey && !e.ctrlKey && e.code === 'KeyF') {{
+      e.preventDefault();
+      formatDocument();
+      return;
+    }}
     if ((e.metaKey || e.ctrlKey) && (e.key === 'e' || e.key === 'E')) {{
       e.preventDefault();
       if (inEdit()) leaveEdit(); else enterEdit();
@@ -2031,6 +2081,7 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  tabs = Array.isArray(tabs) ? tabs : [];
 	  tabsEl.textContent = '';
 	  activeTabId = 0;
+	  activeFormattable = false;
 	  document.body.classList.toggle('has-tabs', tabs.length > 0);
 	  tabs.forEach(function(tab) {{
 	    var item = document.createElement('div');
@@ -2039,7 +2090,10 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	    item.setAttribute('role', 'button');
 	    item.setAttribute('tabindex', '0');
 	    item.title = tab.path;
-	    if (tab.active) activeTabId = tab.id;
+	    if (tab.active) {{
+	      activeTabId = tab.id;
+	      activeFormattable = tab.format === true;
+	    }}
 	    var status = document.createElement('span');
 	    status.className = 'tab-status';
 	    status.textContent = tab.missing ? '!' : '';
@@ -2058,6 +2112,7 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	    tabsEl.appendChild(item);
 	    if (tab.active) requestAnimationFrame(function() {{ item.scrollIntoView({{ block: 'nearest', inline: 'nearest' }}); }});
 	  }});
+	  updateFormatButton();
 	}};
 	tabsEl.addEventListener('keydown', function(e) {{
 	  if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -2155,6 +2210,7 @@ window.__mdPreviewInstallUpdateCheck({{
         btn_preview = s.btn_preview,
         btn_split = s.btn_split,
         btn_split_exit = s.btn_split_exit,
+        btn_format = s.btn_format,
         btn_print = s.btn_print,
         btn_update = s.btn_update,
         btn_zoom = s.btn_zoom,
@@ -2788,15 +2844,76 @@ mod tests {
     }
 
     #[test]
-    fn render_messages_carry_tab_id_and_allow_empty_source() {
+    fn source_messages_carry_tab_id_and_allow_empty_source() {
         assert_eq!(
-            parse_render_message("render:7\n# Hi\n\nbody"),
+            parse_tab_source_message("render:7\n# Hi\n\nbody", "render:"),
             Some((7, "# Hi\n\nbody"))
         );
-        assert_eq!(parse_render_message("render:7\n"), Some((7, "")));
-        assert_eq!(parse_render_message("render:7"), None);
-        assert_eq!(parse_render_message("render:\ntext"), None);
-        assert_eq!(parse_render_message("save:7\ntext"), None);
+        assert_eq!(
+            parse_tab_source_message("render:7\n", "render:"),
+            Some((7, ""))
+        );
+        assert_eq!(
+            parse_tab_source_message("format:9\n# Doc\n", "format:"),
+            Some((9, "# Doc\n"))
+        );
+        assert_eq!(parse_tab_source_message("render:7", "render:"), None);
+        assert_eq!(parse_tab_source_message("render:\ntext", "render:"), None);
+        assert_eq!(parse_tab_source_message("save:7\ntext", "format:"), None);
+    }
+
+    #[test]
+    fn markdown_formatting_normalizes_source_and_is_idempotent() {
+        let source = "#   Title\n\n*   item one\n*   item two\n\n| a |b|\n|---|---|\n| 1|2 |\n\n```rust\nfn  main () {}\n```\n";
+        let formatted = format_markdown_source(source)
+            .expect("format succeeds")
+            .expect("source should change");
+        assert!(formatted.starts_with("# Title\n"));
+        assert!(formatted.contains("- item one\n- item two\n"));
+        assert!(formatted.contains("| a | b |"));
+        assert!(formatted.contains("```rust\nfn  main () {}\n```"));
+        assert_eq!(
+            format_markdown_source(&formatted).expect("format succeeds"),
+            None
+        );
+    }
+
+    #[test]
+    fn markdown_extension_detection_matches_formattable_documents() {
+        assert!(has_markdown_extension(Path::new("a.md")));
+        assert!(has_markdown_extension(Path::new("a.MARKDOWN")));
+        assert!(has_markdown_extension(Path::new("a.mdown")));
+        assert!(has_markdown_extension(Path::new("a.mkd")));
+        assert!(!has_markdown_extension(Path::new("a.txt")));
+        assert!(!has_markdown_extension(Path::new("a")));
+    }
+
+    #[test]
+    fn page_exposes_format_action_for_markdown_source() {
+        let strings = Strings::for_lang(Lang::En);
+        let page = build_page(
+            &md_to_html("# Hello"),
+            "# Hello",
+            None,
+            EnhanceFlags::default(),
+            &strings,
+            false,
+            true,
+        );
+
+        assert!(page.contains("id=\"btn-format\""));
+        assert!(page.contains("body:not(.editing) #btn-format"));
+        assert!(page.contains("formatDocument"));
+        assert!(page.contains("window.__applyFormattedSource"));
+        assert!(page.contains(
+            "window.ipc.postMessage('format:' + activeTabId + '\\n' + pendingFormatSource)"
+        ));
+        assert!(page.contains(
+            "if (e.altKey && !e.shiftKey && !e.metaKey && !e.ctrlKey && e.code === 'KeyF')"
+        ));
+        assert!(page.contains("document.execCommand('insertText', false, formatted)"));
+        assert!(page.contains("Format Markdown (Alt+F)"));
+        assert!(page.contains("activeFormattable = tab.format === true"));
     }
 
     #[test]
@@ -4152,8 +4269,8 @@ fn parse_finder_action(value: &str) -> Option<FinderAction> {
     }
 }
 
-fn parse_render_message(body: &str) -> Option<(u64, &str)> {
-    let rest = body.strip_prefix("render:")?;
+fn parse_tab_source_message<'a>(body: &'a str, prefix: &str) -> Option<(u64, &'a str)> {
+    let rest = body.strip_prefix(prefix)?;
     let (tab_id, source) = rest.split_once('\n')?;
     Some((tab_id.parse().ok()?, source))
 }
@@ -4184,9 +4301,8 @@ fn create_finder_file(folder: &Path, kind: &str) -> std::io::Result<PathBuf> {
     Ok(path)
 }
 
-fn normalize_new_markdown_path(mut path: PathBuf) -> PathBuf {
-    let is_markdown = path
-        .extension()
+fn has_markdown_extension(path: &Path) -> bool {
+    path.extension()
         .and_then(|extension| extension.to_str())
         .map(|extension| {
             matches!(
@@ -4194,8 +4310,11 @@ fn normalize_new_markdown_path(mut path: PathBuf) -> PathBuf {
                 "md" | "markdown" | "mdown" | "mkd"
             )
         })
-        .unwrap_or(false);
-    if !is_markdown {
+        .unwrap_or(false)
+}
+
+fn normalize_new_markdown_path(mut path: PathBuf) -> PathBuf {
+    if !has_markdown_extension(&path) {
         path.set_extension("md");
     }
     path
@@ -4292,6 +4411,14 @@ fn update_window_title(window: &Window, session: &DocumentSession) {
         })
         .unwrap_or_else(|| "MD Preview".to_string());
     window.set_title(&title);
+}
+
+fn active_tab_path(session: &Mutex<DocumentSession>, tab_id: u64) -> Option<PathBuf> {
+    let session = session.lock().unwrap();
+    match session.active() {
+        Some(tab) if tab.id == tab_id => Some(tab.path.clone()),
+        _ => None,
+    }
 }
 
 fn refresh_preview_from_source(
@@ -4749,9 +4876,12 @@ fn main() {
                             .send_event(UserEvent::UpdateCheckResult(UpdateCheckResult::Failed));
                     }
                 }
-            } else if let Some((tab_id, source)) = parse_render_message(body) {
+            } else if let Some((tab_id, source)) = parse_tab_source_message(body, "render:") {
                 let _ =
                     proxy_for_ipc.send_event(UserEvent::RenderPreview(tab_id, source.to_string()));
+            } else if let Some((tab_id, source)) = parse_tab_source_message(body, "format:") {
+                let _ =
+                    proxy_for_ipc.send_event(UserEvent::FormatSource(tab_id, source.to_string()));
             } else if let Some(content) = body.strip_prefix("save:") {
                 let path = session_for_ipc
                     .lock()
@@ -5109,14 +5239,7 @@ fn main() {
                 }
             }
             TaoEvent::UserEvent(UserEvent::RenderPreview(tab_id, source)) => {
-                let path = {
-                    let session = session_for_event.lock().unwrap();
-                    match session.active() {
-                        Some(tab) if tab.id == tab_id => Some(tab.path.clone()),
-                        _ => None,
-                    }
-                };
-                if let Some(path) = path {
+                if let Some(path) = active_tab_path(&session_for_event, tab_id) {
                     refresh_preview_from_source(
                         &webview,
                         &source,
@@ -5124,6 +5247,23 @@ fn main() {
                         &enhance_flags,
                         &mut loaded_enhancers,
                     );
+                }
+            }
+            TaoEvent::UserEvent(UserEvent::FormatSource(tab_id, source)) => {
+                if let Some(path) = active_tab_path(&session_for_event, tab_id) {
+                    if has_markdown_extension(&path) {
+                        match format_markdown_source(&source) {
+                            Ok(Some(formatted)) => {
+                                let _ = webview.evaluate_script(&format!(
+                                    "if(window.__applyFormattedSource)window.__applyFormattedSource({}, '{}');",
+                                    tab_id,
+                                    escape_js(&formatted)
+                                ));
+                            }
+                            Ok(None) => {}
+                            Err(error) => show_warning_dialog("Could Not Format", &error),
+                        }
+                    }
                 }
             }
             TaoEvent::UserEvent(UserEvent::SaveFailed(error)) => {

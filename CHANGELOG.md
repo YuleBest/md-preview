@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added Markdown source formatting through the bundled `dprint-plugin-markdown`, triggered from the source editor toolbar or with `Alt+F`; formatting goes through autosave and keeps native undo.
 - Added a desktop split view that shows Markdown source and the rendered preview side by side, toggled from the toolbar or with `Cmd/Ctrl+Shift+E`.
 - The preview re-renders 250 ms after typing through the existing Rust Markdown pipeline, without waiting for autosave to succeed.
 - Split mode keeps printing at full page width, scrolls wide tables inside the preview column, and returns to preview-only when a tab becomes empty or missing.
