@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added a desktop split view that shows Markdown source and the rendered preview side by side, toggled from the toolbar or with `Cmd/Ctrl+Shift+E`.
+- The preview re-renders 250 ms after typing through the existing Rust Markdown pipeline, without waiting for autosave to succeed.
+- Split mode keeps printing at full page width, scrolls wide tables inside the preview column, and returns to preview-only when a tab becomes empty or missing.
+
 ## 1.4.2
 
 - Fixed Windows crashes when cold-starting with a large Markdown document or restoring one from the previous session. The initial WebView page is now independent of document size; content loads after the page is ready, avoiding WebView2’s 2 MiB HTML limit.

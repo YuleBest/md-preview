@@ -104,6 +104,7 @@ iPhone 和 iPad 上，Local Markdown Preview 可以从“文件”和 iOS 分享
 | 预览搜索 | `Cmd/Ctrl+F` 打开轻量搜索栏，在渲染后的文档内查找。 |
 | 实时刷新 | 外部编辑保存后，预览自动更新。 |
 | 源码编辑 | `Cmd/Ctrl+E` 切到源码模式；编辑会自动保存，`Cmd/Ctrl+S` 可立即保存。 |
+| 双栏视图 | 并排显示源码和渲染预览，输入后预览实时刷新。 |
 | 原生打印 | `Cmd/Ctrl+P` 打开系统打印对话框，只打印预览内容。 |
 | 代码高亮 | highlight.js 离线内置，首屏之后再注入，不阻塞打开。 |
 | 数学公式 | KaTeX 按需渲染 `$...$`、`$$...$$`、`\(...\)`、`\[...\]`。 |
@@ -124,6 +125,7 @@ iPhone 和 iPad 上，Local Markdown Preview 可以从“文件”和 iOS 分享
 | `Cmd/Ctrl + O` | 打开文件 |
 | `Cmd/Ctrl + F` | 在预览里搜索 |
 | `Cmd/Ctrl + E` | 切换预览 / 源码编辑 |
+| `Cmd/Ctrl + Shift + E` | 切换双栏视图（源码 + 预览） |
 | `Cmd/Ctrl + S` | 源码编辑模式下保存 |
 | `Cmd/Ctrl + P` | 打印预览 |
 | `Cmd/Ctrl + W` | 关闭当前标签；没有文档标签时关闭窗口 |

@@ -104,6 +104,7 @@ On iPhone and iPad, Local Markdown Preview opens Markdown and plain-text files f
 | Find in preview | `Cmd/Ctrl+F` opens a compact search bar for the rendered document. |
 | Live reload | External edits refresh the rendered document automatically. |
 | Inline source edit | `Cmd/Ctrl+E` switches to source mode; edits autosave, while `Cmd/Ctrl+S` forces an immediate save. |
+| Split view | Show source and rendered preview side by side, with the preview re-rendering as you type. |
 | Native print | `Cmd/Ctrl+P` opens the platform print dialog and prints only the preview. |
 | Syntax highlighting | highlight.js is embedded offline and injected after first paint. |
 | Math | KaTeX renders `$...$`, `$$...$$`, `\(...\)`, and `\[...\]` on demand. |
@@ -124,6 +125,7 @@ On iPhone and iPad, Local Markdown Preview opens Markdown and plain-text files f
 | `Cmd/Ctrl + O` | Open file |
 | `Cmd/Ctrl + F` | Find in preview |
 | `Cmd/Ctrl + E` | Toggle preview/source edit |
+| `Cmd/Ctrl + Shift + E` | Toggle split view (source and preview) |
 | `Cmd/Ctrl + S` | Save in source edit mode |
 | `Cmd/Ctrl + P` | Print preview |
 | `Cmd/Ctrl + W` | Close the active tab; close the window when no document tab remains |

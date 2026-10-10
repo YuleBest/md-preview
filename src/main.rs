@@ -45,6 +45,7 @@ enum UserEvent {
     FileChanged(PathBuf), // external change: refresh preview AND textarea
     ExternalChangeResolved(bool),
     FileSaved(PathBuf), // our own save: refresh preview only, leave textarea cursor alone
+    RenderPreview(u64, String), // split view: re-render live source without writing the file
     SaveFailed(String),
     DirtyChanged(bool),
     ToggleEdit,
@@ -156,6 +157,8 @@ struct Strings {
     close_tab: &'static str,
     btn_edit: &'static str,
     btn_preview: &'static str,
+    btn_split: &'static str,
+    btn_split_exit: &'static str,
     btn_new: &'static str,
     new_filename: &'static str,
     btn_open: &'static str,
@@ -185,6 +188,8 @@ impl Strings {
                 close_tab: "关闭标签",
                 btn_edit: "编辑 (Cmd/Ctrl+E)",
                 btn_preview: "预览 (Cmd/Ctrl+E)",
+                btn_split: "双栏视图 (Cmd/Ctrl+Shift+E)",
+                btn_split_exit: "退出双栏 (Cmd/Ctrl+Shift+E)",
                 btn_new: "新建 Markdown (Cmd/Ctrl+N)",
                 new_filename: "新建.md",
                 btn_open: "Open File (Cmd/Ctrl+O)",
@@ -210,6 +215,8 @@ impl Strings {
                 close_tab: "Close Tab",
                 btn_edit: "Edit (Cmd/Ctrl+E)",
                 btn_preview: "Preview (Cmd/Ctrl+E)",
+                btn_split: "Split View (Cmd/Ctrl+Shift+E)",
+                btn_split_exit: "Exit Split View (Cmd/Ctrl+Shift+E)",
                 btn_new: "New Markdown (Cmd/Ctrl+N)",
                 new_filename: "Untitled.md",
                 btn_open: "Open File (Cmd/Ctrl+O)",
@@ -1272,6 +1279,7 @@ body.empty .toolbar.has-update button:not(.update-btn) {{ display: none !importa
   transition: color 0.15s, background 0.15s;
 }}
 .toolbar button:hover {{ color: #000; background: rgba(255,255,255,1); }}
+.toolbar button.active {{ color: #000; background: rgba(255,255,255,1); }}
 .toolbar button[hidden] {{ display: none !important; }}
 	.zoom-control {{ position: relative; }}
 	.zoom-popover {{
@@ -1343,6 +1351,8 @@ body.empty .toolbar.has-update button:not(.update-btn) {{ display: none !importa
     color: #bbb;
 	  }}
 	  .toolbar button:hover {{ color: #fff; background: rgba(55,55,55,1); }}
+	  .toolbar button.active {{ color: #fff; background: rgba(55,55,55,1); }}
+	  body.editing.split #editor {{ border-color: #333; }}
 	  .zoom-popover {{ background: rgba(34,34,34,.96); border-color: rgba(255,255,255,.12); }}
 	  .toolbar .zoom-popover button:hover {{ background: rgba(255,255,255,.1); }}
 	  .toolbar .update-btn {{ color: #6cb6ff; }}
@@ -1383,6 +1393,23 @@ body.editing #btn-open,
 body.editing #btn-search,
 body.editing #btn-print {{ display: none; }}
 
+/* Split view: source left, rendered preview right. The page keeps the only
+   vertical scrollbar so both columns stay aligned while reading. */
+body.editing.split #app {{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas: "editor preview";
+  align-items: start;
+}}
+body.editing.split #editor {{ grid-area: editor; border-right: 1px solid #e1e4e8; }}
+body.editing.split #preview {{
+  display: block;
+  grid-area: preview;
+  min-width: 0;
+  padding: 16px 24px;
+}}
+body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; transform: none; }}
+
 @page {{
   margin: 12mm;
 }}
@@ -1390,6 +1417,8 @@ body.editing #btn-print {{ display: none; }}
 @media print {{
   .toolbar, .tabbar, #editor {{ display: none !important; }}
   #preview {{ display: block !important; }}
+  body.editing.split #app {{ display: block; }}
+  body.editing.split #preview {{ padding: 0; }}
   #app {{ max-width: none; padding: 0; }}
   #preview .mdp-table-wrap {{ width: auto; margin: 1em 0; transform: none; overflow: visible; }}
 }}
@@ -1399,6 +1428,7 @@ body.editing #btn-print {{ display: none; }}
 	  <button id="btn-open" title="{btn_open}" aria-label="{btn_open}"></button>
 	  <button id="btn-search" title="{btn_search}" aria-label="{btn_search}"></button>
 	  <button id="btn-toggle" title="{btn_edit}" aria-label="{btn_edit}"></button>
+	  <button id="btn-split" title="{btn_split}" aria-label="{btn_split}" aria-pressed="false"></button>
 	  <button id="btn-print" title="{btn_print}" aria-label="{btn_print}"></button>
 	  <div class="zoom-control" id="zoom-control">
 	    <button id="btn-zoom" title="{btn_zoom}" aria-label="{btn_zoom}"></button>
@@ -1425,6 +1455,7 @@ body.editing #btn-print {{ display: none; }}
 (function(){{
 	  var ICON_EDIT = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
 	  var ICON_VIEW = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+	  var ICON_SPLIT = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/></svg>';
 	  var ICON_OPEN = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6A2 2 0 0 1 18.45 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>';
 	  var ICON_SEARCH = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
 	  var ICON_PRINT = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
@@ -1432,11 +1463,12 @@ body.editing #btn-print {{ display: none; }}
 	  var ICON_UP = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>';
 	  var ICON_DOWN = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
 	  var ICON_CLOSE = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
-	  var L_EDIT = '{btn_edit}', L_VIEW = '{btn_preview}';
+	  var L_EDIT = '{btn_edit}', L_VIEW = '{btn_preview}', L_SPLIT = '{btn_split}', L_SPLIT_EXIT = '{btn_split_exit}';
 
 	  var btnOpen = document.getElementById('btn-open');
 	  var btnSearch = document.getElementById('btn-search');
 	  var btnToggle = document.getElementById('btn-toggle');
+	  var btnSplit = document.getElementById('btn-split');
 	  var btnPrint = document.getElementById('btn-print');
 	  var btnZoom = document.getElementById('btn-zoom');
 	  var btnZoomOut = document.getElementById('btn-zoom-out');
@@ -1458,6 +1490,8 @@ body.editing #btn-print {{ display: none; }}
 	  var pendingAutosaveTimer = 0;
 	  var autosavePaused = false;
 	  var AUTOSAVE_DEBOUNCE_MS = 700;
+	  var pendingRenderTimer = 0;
+	  var RENDER_DEBOUNCE_MS = 250;
 	  var composingFind = false;
 	  var pendingFindTimer = 0;
 	  var FIND_DEBOUNCE_MS = 300;
@@ -1475,6 +1509,7 @@ body.editing #btn-print {{ display: none; }}
 	  btnOpen.innerHTML = ICON_OPEN;
 	  btnSearch.innerHTML = ICON_SEARCH;
 	  btnToggle.innerHTML = ICON_EDIT;
+	  btnSplit.innerHTML = ICON_SPLIT;
 	  btnPrint.innerHTML = ICON_PRINT;
 	  btnZoom.innerHTML = ICON_ZOOM;
 	  btnUpdate.innerHTML = '<span class="update-mark">↻</span><span class="update-label">{btn_update}</span>';
@@ -1483,6 +1518,18 @@ body.editing #btn-print {{ display: none; }}
 	  findClose.innerHTML = ICON_CLOSE;
 
   function inEdit() {{ return document.body.classList.contains('editing'); }}
+  function inSplit() {{ return document.body.classList.contains('split'); }}
+  function setModeButtons() {{
+    var editing = inEdit();
+    btnToggle.innerHTML = editing ? ICON_VIEW : ICON_EDIT;
+    btnToggle.title = editing ? L_VIEW : L_EDIT;
+    btnToggle.setAttribute('aria-label', btnToggle.title);
+    var split = inSplit();
+    btnSplit.classList.toggle('active', split);
+    btnSplit.setAttribute('aria-pressed', split ? 'true' : 'false');
+    btnSplit.title = split ? L_SPLIT_EXIT : L_SPLIT;
+    btnSplit.setAttribute('aria-label', btnSplit.title);
+  }}
   function textSegments(text) {{
     if (typeof Intl !== 'undefined' && Intl.Segmenter) {{
       var segmenter = new Intl.Segmenter(undefined, {{ granularity: 'grapheme' }});
@@ -1563,9 +1610,25 @@ body.editing #btn-print {{ display: none; }}
 	      if (dirty) save();
 	    }}, AUTOSAVE_DEBOUNCE_MS);
 	  }}
+	  function cancelPendingRender() {{
+	    if (!pendingRenderTimer) return;
+	    clearTimeout(pendingRenderTimer);
+	    pendingRenderTimer = 0;
+	  }}
+	  function renderPreviewNow() {{
+	    cancelPendingRender();
+	    if (!inSplit() || !activeTabId) return;
+	    window.ipc.postMessage('render:' + activeTabId + '\n' + ta.value);
+	  }}
+	  function schedulePreviewRender() {{
+	    if (!inSplit()) return;
+	    cancelPendingRender();
+	    pendingRenderTimer = setTimeout(renderPreviewNow, RENDER_DEBOUNCE_MS);
+	  }}
 	  window.__mdPreviewSave = save;
 	  function requestTabAction(action, id) {{
 	    cancelPendingAutosave();
+	    cancelPendingRender();
 	    var message = 'tab-action:' + action + ':' + id;
 	    if (dirty) message += '\n' + ta.value;
 	    window.ipc.postMessage(message);
@@ -1721,9 +1784,8 @@ body.editing #btn-print {{ display: none; }}
 	  function enterEdit() {{
 	    var progress = currentScrollProgress();
 	    document.body.classList.add('editing');
-	    btnToggle.innerHTML = ICON_VIEW;
-	    btnToggle.title = L_VIEW;
-	    btnToggle.setAttribute('aria-label', L_VIEW);
+	    document.body.classList.remove('split');
+	    setModeButtons();
 	    autoResize();
 	    try {{
 	      ta.focus({{ preventScroll: true }});
@@ -1736,9 +1798,36 @@ body.editing #btn-print {{ display: none; }}
     var progress = currentScrollProgress();
     if (dirty) save();
     document.body.classList.remove('editing');
-    btnToggle.innerHTML = ICON_EDIT;
-    btnToggle.title = L_EDIT;
-    btnToggle.setAttribute('aria-label', L_EDIT);
+    document.body.classList.remove('split');
+    setModeButtons();
+    restoreScrollProgress(progress);
+  }}
+  function enterSplit() {{
+    if (document.body.classList.contains('empty') || document.body.classList.contains('missing')) return;
+    var progress = currentScrollProgress();
+    document.body.classList.add('editing');
+    document.body.classList.add('split');
+    setModeButtons();
+    autoResize();
+    try {{
+      ta.focus({{ preventScroll: true }});
+    }} catch (_) {{
+      ta.focus();
+    }}
+    renderPreviewNow();
+    restoreScrollProgress(progress);
+  }}
+  function leaveSplit() {{
+    if (!inSplit()) return;
+    var progress = currentScrollProgress();
+    document.body.classList.remove('split');
+    setModeButtons();
+    autoResize();
+    try {{
+      ta.focus({{ preventScroll: true }});
+    }} catch (_) {{
+      ta.focus();
+    }}
     restoreScrollProgress(progress);
   }}
   window.__mdPreviewToggleEdit = function() {{
@@ -1747,6 +1836,9 @@ body.editing #btn-print {{ display: none; }}
 	window.__mdPreviewEnterEdit = function() {{
 	  if (!inEdit()) enterEdit();
 	}};
+  window.__mdPreviewToggleSplit = function() {{
+    if (inSplit()) leaveSplit(); else enterSplit();
+  }};
 	window.__mdPreviewCloseActiveTab = function() {{
 	  if (activeTabId) requestTabAction('close', activeTabId);
 	}};
@@ -1807,6 +1899,9 @@ body.editing #btn-print {{ display: none; }}
 	  btnToggle.addEventListener('click', function() {{
 	    window.__mdPreviewToggleEdit();
 	  }});
+	  btnSplit.addEventListener('click', function() {{
+	    window.__mdPreviewToggleSplit();
+	  }});
 	  btnZoom.addEventListener('click', function(e) {{
 	    e.stopPropagation();
 	    zoomControl.classList.toggle('open');
@@ -1820,7 +1915,7 @@ body.editing #btn-print {{ display: none; }}
     // WebView::print() calls the right native API on each platform.
     setTimeout(function(){{ window.ipc.postMessage('print'); }}, 0);
   }});
-	  ta.addEventListener('input', function() {{ setDirty(true); scheduleAutosave(); autoResize(); updateDocumentStats(ta.value); }});
+	  ta.addEventListener('input', function() {{ setDirty(true); scheduleAutosave(); schedulePreviewRender(); autoResize(); updateDocumentStats(ta.value); }});
   window.addEventListener('resize', function() {{ if (inEdit()) autoResize(); }});
   document.addEventListener('click', function(e) {{
     if (!zoomControl.contains(e.target)) zoomControl.classList.remove('open');
@@ -1870,6 +1965,11 @@ body.editing #btn-print {{ display: none; }}
 	      showFind();
 	      return;
 	    }}
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'e' || e.key === 'E')) {{
+      e.preventDefault();
+      window.__mdPreviewToggleSplit();
+      return;
+    }}
     if ((e.metaKey || e.ctrlKey) && (e.key === 'e' || e.key === 'E')) {{
       e.preventDefault();
       if (inEdit()) leaveEdit(); else enterEdit();
@@ -1984,10 +2084,10 @@ body.editing #btn-print {{ display: none; }}
 	    document.body.classList.add('empty');
 	    document.body.classList.remove('missing');
 	    document.body.classList.remove('editing');
-	    btnToggle.innerHTML = ICON_EDIT;
-	    btnToggle.title = L_EDIT;
-	    btnToggle.setAttribute('aria-label', L_EDIT);
+	    document.body.classList.remove('split');
+	    setModeButtons();
 	    cancelPendingAutosave();
+	    cancelPendingRender();
 	    autosavePaused = false;
 	    hideFind();
 	    window.__setBaseHref('');
@@ -2001,10 +2101,10 @@ body.editing #btn-print {{ display: none; }}
 	    document.body.classList.remove('empty');
 	    document.body.classList.add('missing');
 	    document.body.classList.remove('editing');
-	    btnToggle.innerHTML = ICON_EDIT;
-	    btnToggle.title = L_EDIT;
-	    btnToggle.setAttribute('aria-label', L_EDIT);
+	    document.body.classList.remove('split');
+	    setModeButtons();
 	    cancelPendingAutosave();
+	    cancelPendingRender();
 	    autosavePaused = false;
 	    hideFind();
 	    window.__setBaseHref('');
@@ -2053,6 +2153,8 @@ window.__mdPreviewInstallUpdateCheck({{
         btn_search = s.btn_search,
         btn_edit = s.btn_edit,
         btn_preview = s.btn_preview,
+        btn_split = s.btn_split,
+        btn_split_exit = s.btn_split_exit,
         btn_print = s.btn_print,
         btn_update = s.btn_update,
         btn_zoom = s.btn_zoom,
@@ -2655,7 +2757,46 @@ mod tests {
         let empty_handler = &page[empty_start..missing_start];
 
         assert!(empty_handler.contains("document.body.classList.remove('editing')"));
-        assert!(empty_handler.contains("btnToggle.innerHTML = ICON_EDIT"));
+        assert!(empty_handler.contains("document.body.classList.remove('split')"));
+        assert!(empty_handler.contains("setModeButtons()"));
+    }
+
+    #[test]
+    fn page_exposes_split_view_with_live_preview() {
+        let strings = Strings::for_lang(Lang::En);
+        let page = build_page(
+            &md_to_html("# Hello"),
+            "# Hello",
+            None,
+            EnhanceFlags::default(),
+            &strings,
+            false,
+            true,
+        );
+
+        assert!(page.contains("id=\"btn-split\""));
+        assert!(page.contains("body.editing.split #app"));
+        assert!(page.contains("grid-template-areas: \"editor preview\""));
+        assert!(page.contains("window.__mdPreviewToggleSplit"));
+        assert!(page.contains("RENDER_DEBOUNCE_MS = 250"));
+        assert!(page.contains("window.ipc.postMessage('render:' + activeTabId + '\\n' + ta.value)"));
+        assert!(page.contains("schedulePreviewRender"));
+        assert!(page.contains("Split View (Cmd/Ctrl+Shift+E)"));
+        assert!(page.contains("e.shiftKey && (e.key === 'e' || e.key === 'E')"));
+        assert!(page.contains("body.editing.split #preview .mdp-table-wrap"));
+        assert!(page.contains("body.editing.split #app { display: block; }"));
+    }
+
+    #[test]
+    fn render_messages_carry_tab_id_and_allow_empty_source() {
+        assert_eq!(
+            parse_render_message("render:7\n# Hi\n\nbody"),
+            Some((7, "# Hi\n\nbody"))
+        );
+        assert_eq!(parse_render_message("render:7\n"), Some((7, "")));
+        assert_eq!(parse_render_message("render:7"), None);
+        assert_eq!(parse_render_message("render:\ntext"), None);
+        assert_eq!(parse_render_message("save:7\ntext"), None);
     }
 
     #[test]
@@ -4011,6 +4152,12 @@ fn parse_finder_action(value: &str) -> Option<FinderAction> {
     }
 }
 
+fn parse_render_message(body: &str) -> Option<(u64, &str)> {
+    let rest = body.strip_prefix("render:")?;
+    let (tab_id, source) = rest.split_once('\n')?;
+    Some((tab_id.parse().ok()?, source))
+}
+
 fn create_finder_file(folder: &Path, kind: &str) -> std::io::Result<PathBuf> {
     if !folder.is_dir() {
         return Err(std::io::Error::new(
@@ -4145,6 +4292,29 @@ fn update_window_title(window: &Window, session: &DocumentSession) {
         })
         .unwrap_or_else(|| "MD Preview".to_string());
     window.set_title(&title);
+}
+
+fn refresh_preview_from_source(
+    webview: &WebView,
+    raw: &str,
+    path: &Path,
+    enhance_flags: &Arc<Mutex<EnhanceFlags>>,
+    loaded_enhancers: &mut EnhanceFlags,
+) {
+    let html = md_to_html_with_base(raw, path.parent());
+    let flags = enhance_flags_for(raw);
+    *enhance_flags.lock().unwrap() = flags;
+    let _ = webview.evaluate_script(&format!(
+        "if(window.__setPreview)window.__setPreview('{}', {}, {});",
+        escape_js(&html),
+        flags.math,
+        flags.mermaid
+    ));
+    for script in build_enhancer_bootstrap(flags, *loaded_enhancers) {
+        let _ = webview.evaluate_script(&script);
+    }
+    loaded_enhancers.math |= flags.math;
+    loaded_enhancers.mermaid |= flags.mermaid;
 }
 
 fn render_active_document(
@@ -4579,6 +4749,9 @@ fn main() {
                             .send_event(UserEvent::UpdateCheckResult(UpdateCheckResult::Failed));
                     }
                 }
+            } else if let Some((tab_id, source)) = parse_render_message(body) {
+                let _ =
+                    proxy_for_ipc.send_event(UserEvent::RenderPreview(tab_id, source.to_string()));
             } else if let Some(content) = body.strip_prefix("save:") {
                 let path = session_for_ipc
                     .lock()
@@ -4914,21 +5087,17 @@ fn main() {
                 APP_DIRTY.store(false, Ordering::SeqCst);
                 if active_matches {
                     if let Ok(raw) = fs::read_to_string(&path) {
-                        let html = md_to_html_with_base(&raw, path.parent());
-                        let flags = enhance_flags_for(&raw);
-                        *enhance_flags.lock().unwrap() = flags;
+                        refresh_preview_from_source(
+                            &webview,
+                            &raw,
+                            &path,
+                            &enhance_flags,
+                            &mut loaded_enhancers,
+                        );
                         let _ = webview.evaluate_script(&format!(
-                            "if(window.__setPreview)window.__setPreview('{}', {}, {});if(window.__markSaved)window.__markSaved('{}');",
-                            escape_js(&html),
-                            flags.math,
-                            flags.mermaid,
+                            "if(window.__markSaved)window.__markSaved('{}');",
                             escape_js(&raw)
                         ));
-                        for script in build_enhancer_bootstrap(flags, loaded_enhancers) {
-                            let _ = webview.evaluate_script(&script);
-                        }
-                        loaded_enhancers.math |= flags.math;
-                        loaded_enhancers.mermaid |= flags.mermaid;
                     }
                 }
                 persist_session(&session);
@@ -4937,6 +5106,24 @@ fn main() {
                 if pending_window_close {
                     save_window_geom(&window);
                     *control_flow = ControlFlow::Exit;
+                }
+            }
+            TaoEvent::UserEvent(UserEvent::RenderPreview(tab_id, source)) => {
+                let path = {
+                    let session = session_for_event.lock().unwrap();
+                    match session.active() {
+                        Some(tab) if tab.id == tab_id => Some(tab.path.clone()),
+                        _ => None,
+                    }
+                };
+                if let Some(path) = path {
+                    refresh_preview_from_source(
+                        &webview,
+                        &source,
+                        &path,
+                        &enhance_flags,
+                        &mut loaded_enhancers,
+                    );
                 }
             }
             TaoEvent::UserEvent(UserEvent::SaveFailed(error)) => {

@@ -194,6 +194,22 @@ if [ -f scripts/verify-desktop-reading-tools.mjs ]; then
   fi
 fi
 
+if [ -f scripts/verify-desktop-split-view.mjs ]; then
+  BUNDLED_NODE="/Users/longjiewu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
+  BUNDLED_NODE_MODULES="/Users/longjiewu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules"
+  if [ -x "$BUNDLED_NODE" ] && [ -d "$BUNDLED_NODE_MODULES" ]; then
+    echo "[agent-verify] desktop split view"
+    NODE_PATH="$BUNDLED_NODE_MODULES" "$BUNDLED_NODE" scripts/verify-desktop-split-view.mjs
+    ran=1
+  elif command -v node >/dev/null 2>&1 && node -e "import('playwright')" >/dev/null 2>&1; then
+    echo "[agent-verify] desktop split view"
+    node scripts/verify-desktop-split-view.mjs
+    ran=1
+  else
+    echo "[agent-verify] skip desktop split view: playwright unavailable"
+  fi
+fi
+
 if [ -x scripts/verify-windows-self-update.sh ]; then
   echo "[agent-verify] Windows self-update"
   bash scripts/verify-windows-self-update.sh

@@ -44,6 +44,7 @@ await page.setContent(`<!doctype html>
       <button id="btn-open"></button>
       <button id="btn-search"></button>
       <button id="btn-toggle"></button>
+      <button id="btn-split" aria-pressed="false"></button>
       <button id="btn-print"></button>
       <div id="zoom-control">
         <button id="btn-zoom"></button>
