@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added an editor context menu with Markdown quick actions (bold, italic, strikethrough, inline code, link, bullet and numbered lists, quote, code block, table) plus `Cmd/Ctrl+B`, `Cmd/Ctrl+I`, `Cmd/Ctrl+K`, `Cmd/Ctrl+Shift+X`, and `Cmd/Ctrl+Shift+\`` shortcuts; edits keep native undo.
 - Added Markdown source formatting through the bundled `dprint-plugin-markdown`, triggered from the source editor toolbar or with `Alt+F`; formatting goes through autosave and keeps native undo.
 - Added a desktop split view that shows Markdown source and the rendered preview side by side, toggled from the toolbar or with `Cmd/Ctrl+Shift+E`.
 - The preview re-renders 250 ms after typing through the existing Rust Markdown pipeline, without waiting for autosave to succeed.

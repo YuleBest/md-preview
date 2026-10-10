@@ -161,6 +161,17 @@ struct Strings {
     btn_split: &'static str,
     btn_split_exit: &'static str,
     btn_format: &'static str,
+    menu_bold: &'static str,
+    menu_italic: &'static str,
+    menu_strike: &'static str,
+    menu_inline_code: &'static str,
+    menu_link: &'static str,
+    menu_bullet_list: &'static str,
+    menu_numbered_list: &'static str,
+    menu_quote: &'static str,
+    menu_code_block: &'static str,
+    menu_table: &'static str,
+    menu_table_template: &'static str,
     btn_new: &'static str,
     new_filename: &'static str,
     btn_open: &'static str,
@@ -193,6 +204,17 @@ impl Strings {
                 btn_split: "双栏视图 (Cmd/Ctrl+Shift+E)",
                 btn_split_exit: "退出双栏 (Cmd/Ctrl+Shift+E)",
                 btn_format: "格式化 Markdown (Alt+F)",
+                menu_bold: "粗体",
+                menu_italic: "斜体",
+                menu_strike: "删除线",
+                menu_inline_code: "行内代码",
+                menu_link: "链接",
+                menu_bullet_list: "无序列表",
+                menu_numbered_list: "有序列表",
+                menu_quote: "引用",
+                menu_code_block: "代码块",
+                menu_table: "表格",
+                menu_table_template: "| 列 1 | 列 2 |\n| --- | --- |\n| 内容 | 内容 |",
                 btn_new: "新建 Markdown (Cmd/Ctrl+N)",
                 new_filename: "新建.md",
                 btn_open: "Open File (Cmd/Ctrl+O)",
@@ -221,6 +243,17 @@ impl Strings {
                 btn_split: "Split View (Cmd/Ctrl+Shift+E)",
                 btn_split_exit: "Exit Split View (Cmd/Ctrl+Shift+E)",
                 btn_format: "Format Markdown (Alt+F)",
+                menu_bold: "Bold",
+                menu_italic: "Italic",
+                menu_strike: "Strikethrough",
+                menu_inline_code: "Inline Code",
+                menu_link: "Link",
+                menu_bullet_list: "Bullet List",
+                menu_numbered_list: "Numbered List",
+                menu_quote: "Quote",
+                menu_code_block: "Code Block",
+                menu_table: "Table",
+                menu_table_template: "| Column 1 | Column 2 |\n| --- | --- |\n| Cell | Cell |",
                 btn_new: "New Markdown (Cmd/Ctrl+N)",
                 new_filename: "Untitled.md",
                 btn_open: "Open File (Cmd/Ctrl+O)",
@@ -1364,6 +1397,11 @@ body.empty .toolbar.has-update button:not(.update-btn) {{ display: none !importa
 	  .toolbar button:hover {{ color: #fff; background: rgba(55,55,55,1); }}
 	  .toolbar button.active {{ color: #fff; background: rgba(55,55,55,1); }}
 	  body.editing.split #editor {{ border-color: #333; }}
+	  .editor-menu {{ background: rgba(34,34,34,.98); border-color: rgba(255,255,255,.12); }}
+	  .editor-menu .menu-item {{ color: #ddd; }}
+	  .editor-menu .menu-item:hover, .editor-menu .menu-item:focus-visible {{ background: rgba(255,255,255,.1); }}
+	  .editor-menu .menu-shortcut {{ color: #888; }}
+	  .editor-menu .menu-sep {{ background: rgba(255,255,255,.12); }}
 	  .zoom-popover {{ background: rgba(34,34,34,.96); border-color: rgba(255,255,255,.12); }}
 	  .toolbar .zoom-popover button:hover {{ background: rgba(255,255,255,.1); }}
 	  .toolbar .update-btn {{ color: #6cb6ff; }}
@@ -1384,6 +1422,14 @@ body.empty .toolbar.has-update button:not(.update-btn) {{ display: none !importa
 	  .missing-actions button {{ background: #292929; border-color: #444; color: #ddd; }}
 	  .missing-actions button:hover {{ background: #333; }}
 	}}
+
+/* Editor context menu — Markdown quick actions for the source textarea */
+.editor-menu {{ position: fixed; z-index: 200; min-width: 208px; padding: 4px; border: 1px solid rgba(0,0,0,.1); border-radius: 8px; background: rgba(255,255,255,.98); box-shadow: 0 10px 28px rgba(0,0,0,.16); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }}
+.editor-menu[hidden] {{ display: none !important; }}
+.editor-menu .menu-item {{ display: flex; align-items: center; justify-content: space-between; gap: 18px; width: 100%; min-height: 30px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: #1a1a1a; font: inherit; font-size: 13px; text-align: left; cursor: default; }}
+.editor-menu .menu-item:hover, .editor-menu .menu-item:focus-visible {{ background: rgba(0,0,0,.06); outline: none; }}
+.editor-menu .menu-shortcut {{ color: #999; font-size: 12px; font-variant-numeric: tabular-nums; }}
+.editor-menu .menu-sep {{ height: 1px; margin: 4px 6px; background: rgba(0,0,0,.08); }}
 
 /* Source editor textarea — height is auto-grown by JS to match content,
    so the page (html) owns the only vertical scrollbar. */
@@ -1478,6 +1524,22 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  var ICON_DOWN = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
 	  var ICON_CLOSE = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 	  var L_EDIT = '{btn_edit}', L_VIEW = '{btn_preview}', L_SPLIT = '{btn_split}', L_SPLIT_EXIT = '{btn_split_exit}', L_FORMAT = '{btn_format}';
+	  var MENU_ITEMS = [
+	    {{ action: 'bold', label: '{menu_bold}', shortcut: {{ key: 'B' }} }},
+	    {{ action: 'italic', label: '{menu_italic}', shortcut: {{ key: 'I' }} }},
+	    {{ action: 'strike', label: '{menu_strike}', shortcut: {{ key: 'X', shift: true }} }},
+	    {{ action: 'inline-code', label: '{menu_inline_code}', shortcut: {{ key: '`', shift: true }} }},
+	    {{ action: 'link', label: '{menu_link}', shortcut: {{ key: 'K' }} }},
+	    {{ separator: true }},
+	    {{ action: 'bullet-list', label: '{menu_bullet_list}' }},
+	    {{ action: 'numbered-list', label: '{menu_numbered_list}' }},
+	    {{ action: 'quote', label: '{menu_quote}' }},
+	    {{ separator: true }},
+	    {{ action: 'code-block', label: '{menu_code_block}' }},
+	    {{ action: 'table', label: '{menu_table}' }}
+	  ];
+	  var T_TABLE = '{menu_table_template_js}';
+	  var IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || '');
 
 	  var btnOpen = document.getElementById('btn-open');
 	  var btnSearch = document.getElementById('btn-search');
@@ -1537,6 +1599,190 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  findNext.innerHTML = ICON_DOWN;
 	  findClose.innerHTML = ICON_CLOSE;
 
+  var editorMenu = document.createElement('div');
+  editorMenu.id = 'editor-menu';
+  editorMenu.className = 'editor-menu';
+  editorMenu.setAttribute('role', 'menu');
+  editorMenu.hidden = true;
+  MENU_ITEMS.forEach(function(item) {{
+    if (item.separator) {{
+      var separator = document.createElement('div');
+      separator.className = 'menu-sep';
+      editorMenu.appendChild(separator);
+      return;
+    }}
+    var itemButton = document.createElement('button');
+    itemButton.type = 'button';
+    itemButton.className = 'menu-item';
+    itemButton.setAttribute('role', 'menuitem');
+    itemButton.setAttribute('data-menu-action', item.action);
+    var itemLabel = document.createElement('span');
+    itemLabel.textContent = item.label;
+    itemButton.appendChild(itemLabel);
+    if (item.shortcut) {{
+      var shortcut = document.createElement('span');
+      shortcut.className = 'menu-shortcut';
+      shortcut.textContent = shortcutLabel(item.shortcut);
+      itemButton.appendChild(shortcut);
+    }}
+    editorMenu.appendChild(itemButton);
+  }});
+  document.body.appendChild(editorMenu);
+
+  function shortcutLabel(shortcut) {{
+    if (IS_MAC) return (shortcut.shift ? '⇧' : '') + '⌘' + shortcut.key;
+    return 'Ctrl+' + (shortcut.shift ? 'Shift+' : '') + shortcut.key;
+  }}
+  function openEditorMenu(x, y) {{
+    editorMenu.hidden = false;
+    editorMenu.style.left = '0px';
+    editorMenu.style.top = '0px';
+    var rect = editorMenu.getBoundingClientRect();
+    var left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
+    var top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
+    editorMenu.style.left = left + 'px';
+    editorMenu.style.top = top + 'px';
+    var firstItem = editorMenu.querySelector('.menu-item');
+    if (firstItem) firstItem.focus({{ preventScroll: true }});
+  }}
+  function closeEditorMenu() {{
+    if (editorMenu.hidden) return;
+    editorMenu.hidden = true;
+  }}
+  function applyEditorReplacement(start, end, text, nextStart, nextEnd) {{
+    try {{ ta.focus({{ preventScroll: true }}); }} catch (_) {{ ta.focus(); }}
+    try {{ ta.setSelectionRange(start, end); }} catch (_) {{}}
+    var applied = false;
+    try {{ applied = document.execCommand('insertText', false, text); }} catch (_) {{ applied = false; }}
+    if (!applied) {{
+      var value = ta.value;
+      ta.value = value.slice(0, start) + text + value.slice(end);
+      setDirty(true);
+      scheduleAutosave();
+      schedulePreviewRender();
+      updateDocumentStats(ta.value);
+    }}
+    if (typeof nextStart === 'number') {{
+      try {{ ta.setSelectionRange(nextStart, typeof nextEnd === 'number' ? nextEnd : nextStart); }} catch (_) {{}}
+    }}
+    autoResize();
+  }}
+  function toggleWrapSelection(prefix, suffix) {{
+    var value = ta.value;
+    var start = ta.selectionStart;
+    var end = ta.selectionEnd;
+    var selected = value.slice(start, end);
+    var outerStart = start - prefix.length;
+    var outerEnd = end + suffix.length;
+    var wrapped = outerStart >= 0 && outerEnd <= value.length
+      && value.slice(outerStart, start) === prefix
+      && value.slice(end, outerEnd) === suffix
+      && (selected.length > 0 || prefix !== suffix);
+    var replacement;
+    var cursorStart;
+    if (wrapped) {{
+      applyEditorReplacement(outerStart, outerEnd, selected, outerStart, outerStart + selected.length);
+      return;
+    }}
+    replacement = prefix + selected + suffix;
+    cursorStart = start + prefix.length;
+    applyEditorReplacement(start, end, replacement, cursorStart, cursorStart + selected.length);
+  }}
+  function insertEditorLink() {{
+    var start = ta.selectionStart;
+    var end = ta.selectionEnd;
+    var selected = ta.value.slice(start, end) || 'text';
+    var replacement = '[' + selected + '](url)';
+    var urlStart = start + 1 + selected.length + 2;
+    applyEditorReplacement(start, end, replacement, urlStart, urlStart + 3);
+  }}
+  function toggleLinePrefix(kind) {{
+    var value = ta.value;
+    var start = value.lastIndexOf('\n', Math.max(0, ta.selectionStart - 1)) + 1;
+    var end = value.indexOf('\n', ta.selectionEnd);
+    if (end === -1) end = value.length;
+    var lines = value.slice(start, end).split('\n');
+    var matcher = kind === 'number' ? /^\d+\.\s/ : (kind === 'quote' ? /^>\s?/ : /^[-*+]\s/);
+    var meaningful = lines.filter(function(line) {{ return line.trim() !== ''; }});
+    var allPrefixed = meaningful.length > 0 && meaningful.every(function(line) {{ return matcher.test(line); }});
+    var counter = 0;
+    var updated = lines.map(function(line) {{
+      if (line.trim() === '') return line;
+      if (allPrefixed) return line.replace(matcher, '');
+      counter += 1;
+      var marker = kind === 'number' ? counter + '. ' : (kind === 'quote' ? '> ' : '- ');
+      return marker + line;
+    }});
+    var replacement = updated.join('\n');
+    applyEditorReplacement(start, end, replacement, start, start + replacement.length);
+  }}
+  function insertCodeBlock() {{
+    var start = ta.selectionStart;
+    var end = ta.selectionEnd;
+    var selected = ta.value.slice(start, end) || 'code';
+    var suffix = end < ta.value.length && ta.value[end] === '\n' ? '' : '\n';
+    var replacement = '```\n' + selected + '\n```' + suffix;
+    var contentStart = start + 4;
+    applyEditorReplacement(start, end, replacement, contentStart, contentStart + selected.length);
+  }}
+  function insertTableTemplate() {{
+    var start = ta.selectionStart;
+    var end = ta.selectionEnd;
+    var before = ta.value.slice(0, start);
+    var prefix = '';
+    if (before.length > 0) {{
+      if (!before.endsWith('\n')) prefix = '\n\n';
+      else if (!before.endsWith('\n\n')) prefix = '\n';
+    }}
+    var replacement = prefix + T_TABLE + '\n';
+    var caret = start + replacement.length;
+    applyEditorReplacement(start, end, replacement, caret);
+  }}
+  function applyMarkdownAction(action) {{
+    if (!inEdit()) return;
+    if (action === 'bold') toggleWrapSelection('**', '**');
+    else if (action === 'italic') toggleWrapSelection('*', '*');
+    else if (action === 'strike') toggleWrapSelection('~~', '~~');
+    else if (action === 'inline-code') toggleWrapSelection('`', '`');
+    else if (action === 'link') insertEditorLink();
+    else if (action === 'bullet-list') toggleLinePrefix('bullet');
+    else if (action === 'numbered-list') toggleLinePrefix('number');
+    else if (action === 'quote') toggleLinePrefix('quote');
+    else if (action === 'code-block') insertCodeBlock();
+    else if (action === 'table') insertTableTemplate();
+  }}
+  editorMenu.addEventListener('click', function(e) {{
+    var menuButton = e.target && e.target.closest ? e.target.closest('[data-menu-action]') : null;
+    if (!menuButton) return;
+    e.preventDefault();
+    var action = menuButton.getAttribute('data-menu-action');
+    closeEditorMenu();
+    applyMarkdownAction(action);
+  }});
+  editorMenu.addEventListener('keydown', function(e) {{
+    var items = Array.prototype.slice.call(editorMenu.querySelectorAll('.menu-item'));
+    var index = items.indexOf(document.activeElement);
+    if (e.key === 'Escape') {{
+      e.preventDefault();
+      e.stopPropagation();
+      closeEditorMenu();
+      ta.focus();
+      return;
+    }}
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {{
+      e.preventDefault();
+      e.stopPropagation();
+      var delta = e.key === 'ArrowDown' ? 1 : -1;
+      items[(index + delta + items.length) % items.length].focus();
+    }}
+  }});
+  document.addEventListener('click', function(e) {{
+    if (!editorMenu.hidden && !editorMenu.contains(e.target)) closeEditorMenu();
+  }});
+  window.addEventListener('blur', closeEditorMenu);
+  window.addEventListener('resize', closeEditorMenu);
+  window.addEventListener('scroll', closeEditorMenu, true);
+
   function inEdit() {{ return document.body.classList.contains('editing'); }}
   function inSplit() {{ return document.body.classList.contains('split'); }}
   function setModeButtons() {{
@@ -1549,6 +1795,7 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
     btnSplit.setAttribute('aria-pressed', split ? 'true' : 'false');
     btnSplit.title = split ? L_SPLIT_EXIT : L_SPLIT;
     btnSplit.setAttribute('aria-label', btnSplit.title);
+    closeEditorMenu();
   }}
   function textSegments(text) {{
     if (typeof Intl !== 'undefined' && Intl.Segmenter) {{
@@ -1605,7 +1852,9 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
   applyZoom(loadZoomPercent(), false);
   updateDocumentStats(ta.value);
   document.addEventListener('contextmenu', function(e) {{
-    if (!inEdit() || e.target !== ta) e.preventDefault();
+    e.preventDefault();
+    if (inEdit() && e.target === ta) openEditorMenu(e.clientX, e.clientY);
+    else closeEditorMenu();
   }});
   function setDirty(d) {{
     if (dirty === d) return;
@@ -2010,6 +2259,13 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	      showFind();
 	      return;
 	    }}
+    if (inEdit() && (e.metaKey || e.ctrlKey) && !e.altKey) {{
+      if (!e.shiftKey && (e.key === 'b' || e.key === 'B')) {{ e.preventDefault(); applyMarkdownAction('bold'); return; }}
+      if (!e.shiftKey && (e.key === 'i' || e.key === 'I')) {{ e.preventDefault(); applyMarkdownAction('italic'); return; }}
+      if (!e.shiftKey && (e.key === 'k' || e.key === 'K')) {{ e.preventDefault(); applyMarkdownAction('link'); return; }}
+      if (e.shiftKey && (e.key === 'x' || e.key === 'X')) {{ e.preventDefault(); applyMarkdownAction('strike'); return; }}
+      if (e.shiftKey && e.code === 'Backquote') {{ e.preventDefault(); applyMarkdownAction('inline-code'); return; }}
+    }}
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'e' || e.key === 'E')) {{
       e.preventDefault();
       window.__mdPreviewToggleSplit();
@@ -2035,6 +2291,7 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
       setTimeout(function(){{ window.ipc.postMessage('print'); }}, 0);
       return;
     }}
+	    if (e.key === 'Escape' && !editorMenu.hidden) {{ e.preventDefault(); closeEditorMenu(); if (inEdit()) ta.focus(); return; }}
 	    if (e.key === 'Escape' && document.body.classList.contains('finding')) {{ hideFind(); return; }}
 	    if (e.key === 'Escape' && inEdit()) {{ leaveEdit(); }}
   }});
@@ -2211,6 +2468,17 @@ window.__mdPreviewInstallUpdateCheck({{
         btn_split = s.btn_split,
         btn_split_exit = s.btn_split_exit,
         btn_format = s.btn_format,
+        menu_bold = s.menu_bold,
+        menu_italic = s.menu_italic,
+        menu_strike = s.menu_strike,
+        menu_inline_code = s.menu_inline_code,
+        menu_link = s.menu_link,
+        menu_bullet_list = s.menu_bullet_list,
+        menu_numbered_list = s.menu_numbered_list,
+        menu_quote = s.menu_quote,
+        menu_code_block = s.menu_code_block,
+        menu_table = s.menu_table,
+        menu_table_template_js = escape_js(s.menu_table_template),
         btn_print = s.btn_print,
         btn_update = s.btn_update,
         btn_zoom = s.btn_zoom,
@@ -2914,6 +3182,51 @@ mod tests {
         assert!(page.contains("document.execCommand('insertText', false, formatted)"));
         assert!(page.contains("Format Markdown (Alt+F)"));
         assert!(page.contains("activeFormattable = tab.format === true"));
+    }
+
+    #[test]
+    fn page_exposes_editor_context_menu_with_markdown_actions() {
+        let strings = Strings::for_lang(Lang::En);
+        let page = build_page(
+            &md_to_html("# Hello"),
+            "# Hello",
+            None,
+            EnhanceFlags::default(),
+            &strings,
+            false,
+            true,
+        );
+
+        assert!(page.contains("var MENU_ITEMS = ["));
+        assert!(page.contains("editorMenu.id = 'editor-menu'"));
+        assert!(page.contains(".editor-menu { position: fixed;"));
+        assert!(page.contains("openEditorMenu(e.clientX, e.clientY)"));
+        assert!(page.contains("function applyMarkdownAction(action)"));
+        assert!(page.contains("function toggleWrapSelection(prefix, suffix)"));
+        assert!(page.contains("function insertEditorLink()"));
+        assert!(page.contains("function toggleLinePrefix(kind)"));
+        assert!(page.contains("function insertCodeBlock()"));
+        assert!(page.contains("function insertTableTemplate()"));
+        for action in [
+            "bold",
+            "italic",
+            "strike",
+            "inline-code",
+            "link",
+            "bullet-list",
+            "numbered-list",
+            "quote",
+            "code-block",
+            "table",
+        ] {
+            assert!(page.contains(&format!("action: '{action}'")));
+        }
+        assert!(page.contains("| Column 1 | Column 2 |\\n| --- | --- |\\n| Cell | Cell |"));
+        assert!(page.contains("e.key === 'b' || e.key === 'B'"));
+        assert!(page.contains("e.key === 'i' || e.key === 'I'"));
+        assert!(page.contains("e.key === 'k' || e.key === 'K'"));
+        assert!(page.contains("e.key === 'x' || e.key === 'X'"));
+        assert!(page.contains("e.code === 'Backquote'"));
     }
 
     #[test]

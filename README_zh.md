@@ -105,6 +105,7 @@ iPhone 和 iPad 上，Local Markdown Preview 可以从“文件”和 iOS 分享
 | 实时刷新 | 外部编辑保存后，预览自动更新。 |
 | 源码编辑 | `Cmd/Ctrl+E` 切到源码模式；编辑会自动保存，`Cmd/Ctrl+S` 可立即保存。 |
 | 格式化源码 | 在源码模式用工具栏按钮或 `Alt+F` 调用 dprint 格式化 Markdown；撤销可恢复格式化前的文本。 |
+| 编辑器右键菜单 | 在源码编辑器内右键即可使用粗体、斜体、删除线、行内代码、链接、无序/有序列表、引用、代码块和表格。 |
 | 双栏视图 | 并排显示源码和渲染预览，输入后预览实时刷新。 |
 | 原生打印 | `Cmd/Ctrl+P` 打开系统打印对话框，只打印预览内容。 |
 | 代码高亮 | highlight.js 离线内置，首屏之后再注入，不阻塞打开。 |
@@ -127,6 +128,11 @@ iPhone 和 iPad 上，Local Markdown Preview 可以从“文件”和 iOS 分享
 | `Cmd/Ctrl + F` | 在预览里搜索 |
 | `Cmd/Ctrl + E` | 切换预览 / 源码编辑 |
 | `Cmd/Ctrl + Shift + E` | 切换双栏视图（源码 + 预览） |
+| `Cmd/Ctrl + B` | 加粗选中文本 |
+| `Cmd/Ctrl + I` | 将选中文本设为斜体 |
+| `Cmd/Ctrl + K` | 插入 Markdown 链接 |
+| `Cmd/Ctrl + Shift + X` | 给选中文本加删除线 |
+| `Cmd/Ctrl + Shift + \`` | 将选中文本设为行内代码 |
 | `Alt + F` | 格式化 Markdown 源码 |
 | `Cmd/Ctrl + S` | 源码编辑模式下保存 |
 | `Cmd/Ctrl + P` | 打印预览 |

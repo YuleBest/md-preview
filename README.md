@@ -105,6 +105,7 @@ On iPhone and iPad, Local Markdown Preview opens Markdown and plain-text files f
 | Live reload | External edits refresh the rendered document automatically. |
 | Inline source edit | `Cmd/Ctrl+E` switches to source mode; edits autosave, while `Cmd/Ctrl+S` forces an immediate save. |
 | Format source | Format the Markdown source with dprint from the editor toolbar or with `Alt+F`; native undo restores the unformatted text. |
+| Editor context menu | Right-click the source editor for bold, italic, strikethrough, inline code, link, bullet/numbered list, quote, code block, and table actions. |
 | Split view | Show source and rendered preview side by side, with the preview re-rendering as you type. |
 | Native print | `Cmd/Ctrl+P` opens the platform print dialog and prints only the preview. |
 | Syntax highlighting | highlight.js is embedded offline and injected after first paint. |
@@ -127,6 +128,11 @@ On iPhone and iPad, Local Markdown Preview opens Markdown and plain-text files f
 | `Cmd/Ctrl + F` | Find in preview |
 | `Cmd/Ctrl + E` | Toggle preview/source edit |
 | `Cmd/Ctrl + Shift + E` | Toggle split view (source and preview) |
+| `Cmd/Ctrl + B` | Bold the selection in the source editor |
+| `Cmd/Ctrl + I` | Italicize the selection in the source editor |
+| `Cmd/Ctrl + K` | Insert a Markdown link |
+| `Cmd/Ctrl + Shift + X` | Strikethrough the selection |
+| `Cmd/Ctrl + Shift + \`` | Inline code the selection |
 | `Alt + F` | Format the Markdown source |
 | `Cmd/Ctrl + S` | Save in source edit mode |
 | `Cmd/Ctrl + P` | Print preview |
