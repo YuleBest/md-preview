@@ -26,7 +26,7 @@ const desktopScript = mainRs
   .replaceAll('{btn_split_exit}', 'Exit Split View')
   .replaceAll('{btn_format}', 'Format Markdown (Alt+F)');
 
-const hiddenFormatCss = mainRs.match(/body:not\(\.editing\) #btn-format \{\{[^\n]*\}\}/)?.[0];
+const hiddenFormatCss = mainRs.match(/body:not\(\.editing\) #btn-format,[\s\S]*?\{\{[^\n]*\}\}/)?.[0];
 if (!hiddenFormatCss) throw new Error('format button visibility rule not found');
 const hiddenFormatRule = hiddenFormatCss.replaceAll('{{', '{').replaceAll('}}', '}');
 
@@ -80,7 +80,9 @@ await page.setContent(`<!doctype html>
       <button id="btn-search"></button>
       <button id="btn-toggle"></button>
       <button id="btn-split" aria-pressed="false"></button>
+      <button id="btn-undo"></button>
       <button id="btn-format" hidden></button>
+      <button id="btn-autosave" aria-pressed="true"></button>
       <button id="btn-print"></button>
       <div id="zoom-control" class="zoom-control">
         <button id="btn-zoom"></button>

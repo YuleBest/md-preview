@@ -35,7 +35,11 @@ const desktopScript = mainRs
   .replaceAll('{menu_quote}', 'Quote')
   .replaceAll('{menu_code_block}', 'Code Block')
   .replaceAll('{menu_table}', 'Table')
-  .replaceAll('{menu_table_template_js}', '| Column 1 | Column 2 |\\n| --- | --- |\\n| Cell | Cell |');
+  .replaceAll('{menu_table_template_js}', '| Column 1 | Column 2 |\\n| --- | --- |\\n| Cell | Cell |')
+  .replaceAll('{menu_undo}', 'Undo')
+  .replaceAll('{btn_undo}', 'Undo (Cmd/Ctrl+Z)')
+  .replaceAll('{btn_autosave_on}', 'Autosave on (click to turn off)')
+  .replaceAll('{btn_autosave_off}', 'Autosave off (Cmd/Ctrl+S saves manually)');
 
 const menuCss = mainRs
   .split('\n')
@@ -49,6 +53,11 @@ if (!menuCss.includes('.editor-menu .menu-item')) {
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
+await page.route('https://md-preview.test/**', (route) => route.fulfill({
+  contentType: 'text/html',
+  body: '<!doctype html><title>MD Preview editor test</title>',
+}));
+await page.goto('https://md-preview.test/');
 await page.setContent(`<!doctype html>
 <html>
   <head>
@@ -97,7 +106,9 @@ await page.setContent(`<!doctype html>
       <button id="btn-search"></button>
       <button id="btn-toggle"></button>
       <button id="btn-split" aria-pressed="false"></button>
+      <button id="btn-undo"></button>
       <button id="btn-format" hidden></button>
+      <button id="btn-autosave" aria-pressed="true"></button>
       <button id="btn-print"></button>
       <div id="zoom-control" class="zoom-control">
         <button id="btn-zoom"></button>
@@ -214,15 +225,15 @@ let state = await page.evaluate(() => {
   };
 });
 if (state.hidden) fail('right click must open the editor menu', state);
-if (state.itemCount !== 10 || state.separatorCount !== 2) fail('menu item layout is wrong', state);
-if (state.labels.join('|') !== 'Bold|Italic|Strikethrough|Inline Code|Link|Bullet List|Numbered List|Quote|Code Block|Table') {
+if (state.itemCount !== 11 || state.separatorCount !== 3) fail('menu item layout is wrong', state);
+if (state.labels.join('|') !== 'Undo|Bold|Italic|Strikethrough|Inline Code|Link|Bullet List|Numbered List|Quote|Code Block|Table') {
   fail('menu labels are wrong', state);
 }
 if (state.boldShortcut !== 'Ctrl+B') fail('shortcut hint is wrong', state);
 if (state.left < 0 || state.top < 0 || state.right > state.innerWidth + 1 || state.bottom > state.innerHeight + 1) {
   fail('menu must stay inside the viewport', state);
 }
-if (state.focusedAction !== 'bold') fail('menu must focus the first item', state);
+if (state.focusedAction !== 'undo') fail('menu must focus the first item', state);
 
 await clickMenuItem('Bold');
 state = await editorState();
@@ -330,6 +341,77 @@ if (state.value !== 'intro\n\n| Column 1 | Column 2 |\n| --- | --- |\n| Cell | C
   fail('table action failed', state);
 }
 
+await setSource('alpha\n');
+await selectRange(5, 5);
+await page.keyboard.press('Control+B');
+await page.waitForTimeout(60);
+state = await editorState();
+if (state.value !== 'alpha****\n') fail('bold must apply before the undo button check', state);
+await page.locator('#btn-undo').click();
+await page.waitForTimeout(80);
+state = await editorState();
+if (state.value !== 'alpha\n') fail('undo button must revert the last edit', state);
+
+await selectRange(5, 5);
+await page.keyboard.type('X');
+await page.waitForTimeout(60);
+state = await editorState();
+if (state.value !== 'alphaX\n') fail('typing must apply before the Ctrl+Z check', state);
+await page.keyboard.press('Control+Z');
+await page.waitForTimeout(80);
+state = await editorState();
+if (state.value !== 'alpha\n') fail('Ctrl+Z must revert the last edit', state);
+
+state = await page.evaluate(() => ({
+  pressed: document.getElementById('btn-autosave').getAttribute('aria-pressed'),
+  display: getComputedStyle(document.getElementById('btn-autosave')).display,
+}));
+if (state.pressed !== 'true' || state.display === 'none') {
+  fail('autosave must default to on and be visible in edit mode', state);
+}
+
+await page.locator('#btn-autosave').click();
+await page.waitForTimeout(60);
+state = await page.evaluate(() => ({
+  pressed: document.getElementById('btn-autosave').getAttribute('aria-pressed'),
+  title: document.getElementById('btn-autosave').title,
+  stored: localStorage.getItem('md-preview-autosave-v1'),
+}));
+if (state.pressed !== 'false' || state.title !== 'Autosave off (Cmd/Ctrl+S saves manually)' || state.stored !== '0') {
+  fail('turning autosave off failed', state);
+}
+
+await page.evaluate(() => { window.__messages.length = 0; });
+await page.locator('#editor').fill('manual save draft\n');
+await page.waitForTimeout(900);
+let messages = await page.evaluate(() => window.__messages.slice());
+if (messages.some((message) => message.startsWith('save:'))) {
+  fail('autosave off must not write after typing', messages);
+}
+await page.keyboard.press('Control+S');
+await page.waitForTimeout(80);
+messages = await page.evaluate(() => window.__messages.slice());
+if (!messages.includes('save:manual save draft\n')) {
+  fail('Ctrl+S must still save while autosave is off', messages);
+}
+
+await page.locator('#btn-autosave').click();
+await page.waitForTimeout(60);
+await page.evaluate(() => { window.__messages.length = 0; });
+await page.locator('#editor').fill('autosave draft\n');
+await page.waitForTimeout(900);
+messages = await page.evaluate(() => window.__messages.slice());
+if (!messages.includes('save:autosave draft\n')) {
+  fail('autosave must write again once re-enabled', messages);
+}
+state = await page.evaluate(() => ({
+  pressed: document.getElementById('btn-autosave').getAttribute('aria-pressed'),
+  stored: localStorage.getItem('md-preview-autosave-v1'),
+}));
+if (state.pressed !== 'true' || state.stored !== '1') {
+  fail('turning autosave back on failed', state);
+}
+
 await selectRange(0, 0);
 await openMenuOnEditor(0, 0);
 state = await page.evaluate(() => ({ hidden: document.getElementById('editor-menu').hidden }));
@@ -348,7 +430,7 @@ await page.waitForTimeout(40);
 state = await page.evaluate(() => ({
   focusedAction: document.activeElement.getAttribute('data-menu-action'),
 }));
-if (state.focusedAction !== 'italic') fail('arrow key navigation failed', state);
+if (state.focusedAction !== 'bold') fail('arrow key navigation failed', state);
 
 await page.mouse.click(870, 650);
 await page.waitForTimeout(60);
@@ -356,4 +438,4 @@ state = await page.evaluate(() => ({ hidden: document.getElementById('editor-men
 if (!state.hidden) fail('clicking outside must close the menu', state);
 
 await browser.close();
-console.log('[desktop-editor-menu-verify] OK');
+console.log('[desktop-editor-verify] OK');

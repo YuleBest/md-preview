@@ -172,6 +172,10 @@ struct Strings {
     menu_code_block: &'static str,
     menu_table: &'static str,
     menu_table_template: &'static str,
+    menu_undo: &'static str,
+    btn_undo: &'static str,
+    btn_autosave_on: &'static str,
+    btn_autosave_off: &'static str,
     btn_new: &'static str,
     new_filename: &'static str,
     btn_open: &'static str,
@@ -215,6 +219,10 @@ impl Strings {
                 menu_code_block: "代码块",
                 menu_table: "表格",
                 menu_table_template: "| 列 1 | 列 2 |\n| --- | --- |\n| 内容 | 内容 |",
+                menu_undo: "撤销",
+                btn_undo: "撤销 (Cmd/Ctrl+Z)",
+                btn_autosave_on: "自动保存已开启 (点击关闭)",
+                btn_autosave_off: "自动保存已关闭 (Cmd/Ctrl+S 手动保存)",
                 btn_new: "新建 Markdown (Cmd/Ctrl+N)",
                 new_filename: "新建.md",
                 btn_open: "Open File (Cmd/Ctrl+O)",
@@ -254,6 +262,10 @@ impl Strings {
                 menu_code_block: "Code Block",
                 menu_table: "Table",
                 menu_table_template: "| Column 1 | Column 2 |\n| --- | --- |\n| Cell | Cell |",
+                menu_undo: "Undo",
+                btn_undo: "Undo (Cmd/Ctrl+Z)",
+                btn_autosave_on: "Autosave on (click to turn off)",
+                btn_autosave_off: "Autosave off (Cmd/Ctrl+S saves manually)",
                 btn_new: "New Markdown (Cmd/Ctrl+N)",
                 new_filename: "Untitled.md",
                 btn_open: "Open File (Cmd/Ctrl+O)",
@@ -1449,7 +1461,9 @@ body.editing #app {{ max-width: none; padding: 0; }}
 body.editing #btn-open,
 body.editing #btn-search,
 body.editing #btn-print {{ display: none; }}
-body:not(.editing) #btn-format {{ display: none !important; }}
+body:not(.editing) #btn-format,
+body:not(.editing) #btn-undo,
+body:not(.editing) #btn-autosave {{ display: none !important; }}
 
 /* Split view: source left, rendered preview right. The page keeps the only
    vertical scrollbar so both columns stay aligned while reading. */
@@ -1487,7 +1501,9 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  <button id="btn-search" title="{btn_search}" aria-label="{btn_search}"></button>
 	  <button id="btn-toggle" title="{btn_edit}" aria-label="{btn_edit}"></button>
 	  <button id="btn-split" title="{btn_split}" aria-label="{btn_split}" aria-pressed="false"></button>
+	  <button id="btn-undo" title="{btn_undo}" aria-label="{btn_undo}"></button>
 	  <button id="btn-format" title="{btn_format}" aria-label="{btn_format}" hidden></button>
+	  <button id="btn-autosave" title="{btn_autosave_on}" aria-label="{btn_autosave_on}" aria-pressed="true"></button>
 	  <button id="btn-print" title="{btn_print}" aria-label="{btn_print}"></button>
 	  <div class="zoom-control" id="zoom-control">
 	    <button id="btn-zoom" title="{btn_zoom}" aria-label="{btn_zoom}"></button>
@@ -1516,6 +1532,8 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  var ICON_VIEW = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 	  var ICON_SPLIT = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/></svg>';
 	  var ICON_FORMAT = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg>';
+	  var ICON_UNDO = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>';
+	  var ICON_AUTOSAVE = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>';
 	  var ICON_OPEN = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6A2 2 0 0 1 18.45 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>';
 	  var ICON_SEARCH = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
 	  var ICON_PRINT = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
@@ -1523,8 +1541,11 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  var ICON_UP = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>';
 	  var ICON_DOWN = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
 	  var ICON_CLOSE = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
-	  var L_EDIT = '{btn_edit}', L_VIEW = '{btn_preview}', L_SPLIT = '{btn_split}', L_SPLIT_EXIT = '{btn_split_exit}', L_FORMAT = '{btn_format}';
+	  var L_EDIT = '{btn_edit}', L_VIEW = '{btn_preview}', L_SPLIT = '{btn_split}', L_SPLIT_EXIT = '{btn_split_exit}', L_FORMAT = '{btn_format}', L_UNDO = '{btn_undo}', L_AUTOSAVE_ON = '{btn_autosave_on}', L_AUTOSAVE_OFF = '{btn_autosave_off}';
+	  var AUTOSAVE_STORAGE_KEY = 'md-preview-autosave-v1';
 	  var MENU_ITEMS = [
+	    {{ action: 'undo', label: '{menu_undo}', shortcut: {{ key: 'Z' }} }},
+	    {{ separator: true }},
 	    {{ action: 'bold', label: '{menu_bold}', shortcut: {{ key: 'B' }} }},
 	    {{ action: 'italic', label: '{menu_italic}', shortcut: {{ key: 'I' }} }},
 	    {{ action: 'strike', label: '{menu_strike}', shortcut: {{ key: 'X', shift: true }} }},
@@ -1546,6 +1567,8 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  var btnToggle = document.getElementById('btn-toggle');
 	  var btnSplit = document.getElementById('btn-split');
 	  var btnFormat = document.getElementById('btn-format');
+	  var btnUndo = document.getElementById('btn-undo');
+	  var btnAutosave = document.getElementById('btn-autosave');
 	  var btnPrint = document.getElementById('btn-print');
 	  var btnZoom = document.getElementById('btn-zoom');
 	  var btnZoomOut = document.getElementById('btn-zoom-out');
@@ -1566,6 +1589,7 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  var activeTabId = 0;
 	  var pendingAutosaveTimer = 0;
 	  var autosavePaused = false;
+	  var autosaveEnabled = true;
 	  var AUTOSAVE_DEBOUNCE_MS = 700;
 	  var pendingRenderTimer = 0;
 	  var RENDER_DEBOUNCE_MS = 250;
@@ -1592,6 +1616,10 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  btnFormat.innerHTML = ICON_FORMAT;
 	  btnFormat.title = L_FORMAT;
 	  btnFormat.setAttribute('aria-label', L_FORMAT);
+	  btnUndo.innerHTML = ICON_UNDO;
+	  btnUndo.title = L_UNDO;
+	  btnUndo.setAttribute('aria-label', L_UNDO);
+	  btnAutosave.innerHTML = ICON_AUTOSAVE;
 	  btnPrint.innerHTML = ICON_PRINT;
 	  btnZoom.innerHTML = ICON_ZOOM;
 	  btnUpdate.innerHTML = '<span class="update-mark">↻</span><span class="update-label">{btn_update}</span>';
@@ -1740,7 +1768,8 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
   }}
   function applyMarkdownAction(action) {{
     if (!inEdit()) return;
-    if (action === 'bold') toggleWrapSelection('**', '**');
+    if (action === 'undo') undoEdit();
+    else if (action === 'bold') toggleWrapSelection('**', '**');
     else if (action === 'italic') toggleWrapSelection('*', '*');
     else if (action === 'strike') toggleWrapSelection('~~', '~~');
     else if (action === 'inline-code') toggleWrapSelection('`', '`');
@@ -1866,6 +1895,41 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	    clearTimeout(pendingAutosaveTimer);
 	    pendingAutosaveTimer = 0;
 	  }}
+	  function loadAutosaveEnabled() {{
+	    try {{
+	      if (localStorage.getItem(AUTOSAVE_STORAGE_KEY) === '0') return false;
+	    }} catch (_) {{}}
+	    return true;
+	  }}
+	  function updateAutosaveButton() {{
+	    btnAutosave.classList.toggle('active', autosaveEnabled);
+	    btnAutosave.setAttribute('aria-pressed', autosaveEnabled ? 'true' : 'false');
+	    btnAutosave.title = autosaveEnabled ? L_AUTOSAVE_ON : L_AUTOSAVE_OFF;
+	    btnAutosave.setAttribute('aria-label', btnAutosave.title);
+	  }}
+	  function applyAutosaveEnabled(enabled, persist) {{
+	    autosaveEnabled = enabled;
+	    if (!enabled) cancelPendingAutosave();
+	    if (persist) {{
+	      try {{ localStorage.setItem(AUTOSAVE_STORAGE_KEY, enabled ? '1' : '0'); }} catch (_) {{}}
+	    }}
+	    updateAutosaveButton();
+	    if (enabled && dirty) scheduleAutosave();
+	  }}
+	  function undoEdit() {{
+	    if (!inEdit()) return;
+	    try {{ ta.focus({{ preventScroll: true }}); }} catch (_) {{ ta.focus(); }}
+	    var before = ta.value;
+	    var applied = false;
+	    try {{ applied = document.execCommand('undo'); }} catch (_) {{ applied = false; }}
+	    if (applied && ta.value !== before) {{
+	      setDirty(true);
+	      scheduleAutosave();
+	      schedulePreviewRender();
+	      autoResize();
+	      updateDocumentStats(ta.value);
+	    }}
+	  }}
 	  function save() {{
 	    cancelPendingAutosave();
 	    if (!dirty) return;
@@ -1873,12 +1937,13 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	  }}
 	  function scheduleAutosave() {{
 	    cancelPendingAutosave();
-	    if (autosavePaused) return;
+	    if (autosavePaused || !autosaveEnabled) return;
 	    pendingAutosaveTimer = setTimeout(function() {{
 	      pendingAutosaveTimer = 0;
 	      if (dirty) save();
 	    }}, AUTOSAVE_DEBOUNCE_MS);
 	  }}
+	  applyAutosaveEnabled(loadAutosaveEnabled(), false);
 	  function cancelPendingRender() {{
 	    if (!pendingRenderTimer) return;
 	    clearTimeout(pendingRenderTimer);
@@ -2196,6 +2261,10 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	    window.__mdPreviewToggleSplit();
 	  }});
 	  btnFormat.addEventListener('click', formatDocument);
+	  btnUndo.addEventListener('click', undoEdit);
+	  btnAutosave.addEventListener('click', function() {{
+	    applyAutosaveEnabled(!autosaveEnabled, true);
+	  }});
 	  btnZoom.addEventListener('click', function(e) {{
 	    e.stopPropagation();
 	    zoomControl.classList.toggle('open');
@@ -2260,6 +2329,7 @@ body.editing.split #preview .mdp-table-wrap {{ width: 100%; margin: 1em 0; trans
 	      return;
 	    }}
     if (inEdit() && (e.metaKey || e.ctrlKey) && !e.altKey) {{
+      if (!e.shiftKey && (e.key === 'z' || e.key === 'Z')) {{ e.preventDefault(); undoEdit(); return; }}
       if (!e.shiftKey && (e.key === 'b' || e.key === 'B')) {{ e.preventDefault(); applyMarkdownAction('bold'); return; }}
       if (!e.shiftKey && (e.key === 'i' || e.key === 'I')) {{ e.preventDefault(); applyMarkdownAction('italic'); return; }}
       if (!e.shiftKey && (e.key === 'k' || e.key === 'K')) {{ e.preventDefault(); applyMarkdownAction('link'); return; }}
@@ -2479,6 +2549,10 @@ window.__mdPreviewInstallUpdateCheck({{
         menu_code_block = s.menu_code_block,
         menu_table = s.menu_table,
         menu_table_template_js = escape_js(s.menu_table_template),
+        menu_undo = s.menu_undo,
+        btn_undo = s.btn_undo,
+        btn_autosave_on = s.btn_autosave_on,
+        btn_autosave_off = s.btn_autosave_off,
         btn_print = s.btn_print,
         btn_update = s.btn_update,
         btn_zoom = s.btn_zoom,
@@ -3208,6 +3282,7 @@ mod tests {
         assert!(page.contains("function insertCodeBlock()"));
         assert!(page.contains("function insertTableTemplate()"));
         for action in [
+            "undo",
             "bold",
             "italic",
             "strike",
@@ -3227,6 +3302,31 @@ mod tests {
         assert!(page.contains("e.key === 'k' || e.key === 'K'"));
         assert!(page.contains("e.key === 'x' || e.key === 'X'"));
         assert!(page.contains("e.code === 'Backquote'"));
+    }
+
+    #[test]
+    fn page_exposes_undo_and_autosave_controls() {
+        let strings = Strings::for_lang(Lang::En);
+        let page = build_page(
+            &md_to_html("# Hello"),
+            "# Hello",
+            None,
+            EnhanceFlags::default(),
+            &strings,
+            false,
+            true,
+        );
+
+        assert!(page.contains("id=\"btn-undo\""));
+        assert!(page.contains("id=\"btn-autosave\""));
+        assert!(page.contains("btnUndo.addEventListener('click', undoEdit)"));
+        assert!(page.contains("function undoEdit()"));
+        assert!(page.contains("document.execCommand('undo')"));
+        assert!(page.contains("AUTOSAVE_STORAGE_KEY = 'md-preview-autosave-v1'"));
+        assert!(page.contains("autosavePaused || !autosaveEnabled"));
+        assert!(page.contains("applyAutosaveEnabled(!autosaveEnabled, true)"));
+        assert!(page.contains("e.key === 'z' || e.key === 'Z'"));
+        assert!(page.contains("Autosave off (Cmd/Ctrl+S saves manually)"));
     }
 
     #[test]

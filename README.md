@@ -106,6 +106,8 @@ On iPhone and iPad, Local Markdown Preview opens Markdown and plain-text files f
 | Inline source edit | `Cmd/Ctrl+E` switches to source mode; edits autosave, while `Cmd/Ctrl+S` forces an immediate save. |
 | Format source | Format the Markdown source with dprint from the editor toolbar or with `Alt+F`; native undo restores the unformatted text. |
 | Editor context menu | Right-click the source editor for bold, italic, strikethrough, inline code, link, bullet/numbered list, quote, code block, and table actions. |
+| Undo | Undo the last source edit from the toolbar or with `Cmd/Ctrl+Z`; typing, Markdown actions, and formatting share one undo history. |
+| Autosave control | Turn the idle autosave off from the editor toolbar; `Cmd/Ctrl+S`, tab switches, tab/window close, and quit still write pending edits. |
 | Split view | Show source and rendered preview side by side, with the preview re-rendering as you type. |
 | Native print | `Cmd/Ctrl+P` opens the platform print dialog and prints only the preview. |
 | Syntax highlighting | highlight.js is embedded offline and injected after first paint. |
@@ -128,6 +130,7 @@ On iPhone and iPad, Local Markdown Preview opens Markdown and plain-text files f
 | `Cmd/Ctrl + F` | Find in preview |
 | `Cmd/Ctrl + E` | Toggle preview/source edit |
 | `Cmd/Ctrl + Shift + E` | Toggle split view (source and preview) |
+| `Cmd/Ctrl + Z` | Undo the last source edit |
 | `Cmd/Ctrl + B` | Bold the selection in the source editor |
 | `Cmd/Ctrl + I` | Italicize the selection in the source editor |
 | `Cmd/Ctrl + K` | Insert a Markdown link |

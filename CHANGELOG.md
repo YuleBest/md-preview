@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added an undo button and `Cmd/Ctrl+Z` for the source editor, sharing one native undo history with typing, context-menu actions, and formatting.
+- Added an autosave toggle in the editor toolbar, persisted across launches; manual save, tab switches, tab/window close, and quit still write pending edits.
 - Added an editor context menu with Markdown quick actions (bold, italic, strikethrough, inline code, link, bullet and numbered lists, quote, code block, table) plus `Cmd/Ctrl+B`, `Cmd/Ctrl+I`, `Cmd/Ctrl+K`, `Cmd/Ctrl+Shift+X`, and `Cmd/Ctrl+Shift+\`` shortcuts; edits keep native undo.
 - Added Markdown source formatting through the bundled `dprint-plugin-markdown`, triggered from the source editor toolbar or with `Alt+F`; formatting goes through autosave and keeps native undo.
 - Added a desktop split view that shows Markdown source and the rendered preview side by side, toggled from the toolbar or with `Cmd/Ctrl+Shift+E`.
