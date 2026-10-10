@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.5.0
 
+- Linux releases now also ship a `MD-Preview-linux-x64.deb` package next to the tarball.
 - Allowed Ctrl + mouse wheel, including trackpad pinch, to zoom document content with the same 70%-200% range and persisted level as the toolbar controls.
 - Added an undo button and `Cmd/Ctrl+Z` for the source editor, sharing one native undo history with typing, context-menu actions, and formatting.
 - Added an autosave toggle in the editor toolbar, persisted across launches; manual save, tab switches, tab/window close, and quit still write pending edits.
